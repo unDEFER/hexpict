@@ -624,10 +624,11 @@ void hex2pixel(string inpict, string outpict, int scale)
                     }
                     i++;
                 }
+                /*
                 if (x == 239 && y == 125)
                 {
                     writefln("%sx%s: na=%s, nareas[]=%s", x, y, na, nareas[0..na]);
-                }
+                }*/
 
                 foreach (dy; 0..hph)
                 {
