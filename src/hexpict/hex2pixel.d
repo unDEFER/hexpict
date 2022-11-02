@@ -119,7 +119,7 @@ void hex2pixel(string inpict, string outpict, int scale)
         nw = cast(int) (4*iw);
         nh = cast(int) (3.5*ih+1);
     }
-    else if (scale == 20)
+    else
     {
         hpw = scale;
         hph = cast(int) round(hpw * 2.0 / sqrt(3.0));
@@ -150,7 +150,7 @@ void hex2pixel(string inpict, string outpict, int scale)
         {
             iy = cast(int) (3.5*y);
         }
-        else if (scale == 20)
+        else
         {
             iy = (hph-hh)*y;
         }
@@ -186,7 +186,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                 {
                     ix = cast(int) (4.0*x);
                 }
-                else if (scale == 20)
+                else
                 {
                     ix = hpw*x;
                 }
@@ -203,7 +203,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                 {
                     ix = cast(int) (2.0+4.0*x);
                 }
-                else if (scale == 20)
+
                 {
                     ix = hpw/2+hpw*x;
                 }
@@ -234,8 +234,6 @@ void hex2pixel(string inpict, string outpict, int scale)
             byte[24] pixarea;
             if (scale == 3 || scale == 4)
             {
-                int area = 0;
-
                 ubyte i = cast(ubyte) m.r;
 
                 ubyte[4] nareas;
@@ -321,8 +319,6 @@ void hex2pixel(string inpict, string outpict, int scale)
                             {
                                 pixarea[dn] += pixareas1[d][dn];
                             }
-
-                            area += areas[d];
                         }
                         else
                         {
@@ -330,8 +326,6 @@ void hex2pixel(string inpict, string outpict, int scale)
                             {
                                 pixarea[dn] += pixareas2[d][dn];
                             }
-
-                            area += areas[d];
                         }
                     }
                     else if (scale == 4)
@@ -342,8 +336,6 @@ void hex2pixel(string inpict, string outpict, int scale)
                             {
                                 pixarea[dn] += pixareas3[d][dn];
                             }
-
-                            area += areas[d];
                         }
                         else
                         {
@@ -351,8 +343,6 @@ void hex2pixel(string inpict, string outpict, int scale)
                             {
                                 pixarea[dn] += pixareas4[d][dn];
                             }
-
-                            area += areas[d];
                         }
                     }
                 }
@@ -372,7 +362,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                             int dn = 1 + dy*3 + dx;
 
                             Pixel ap = p;
-                            Pixel mp = (m.g == 0 ? p : mix(np, cast(ubyte) m.g));
+                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
 
                             byte pa = pixarea[dn];
                             byte a = cast(byte) (pixareas1[49][dn] - pa);
@@ -399,7 +389,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                         int dn = 0;
 
                         Pixel ap = p;
-                        Pixel mp = (m.g == 0 ? p : mix(np, cast(ubyte) m.g));
+                        Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
 
                         byte pa = pixarea[dn];
                         byte a = cast(byte) (pixareas1[49][dn] - pa);
@@ -424,7 +414,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                         int dn = 10;
 
                         Pixel ap = p;
-                        Pixel mp = (m.g == 0 ? p : mix(np, cast(ubyte) m.g));
+                        Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
 
                         byte pa = pixarea[dn];
                         byte a = cast(byte) (pixareas1[49][dn] - pa);
@@ -455,7 +445,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                             int dn = dy*4 + dx;
 
                             Pixel ap = p;
-                            Pixel mp = (m.g == 0 ? p : mix(np, cast(ubyte) m.g));
+                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
 
                             byte pa = pixarea[dn];
                             byte a = cast(byte) (pixareas2[49][dn] - pa);
@@ -493,7 +483,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                             int dn = dy*4 + dx;
 
                             Pixel ap = p;
-                            Pixel mp = (m.g == 0 ? p : mix(np, cast(ubyte) m.g));
+                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
 
                             byte pa = pixarea[dn];
                             byte a = cast(byte) (pixareas3[49][dn] - pa);
@@ -525,7 +515,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                             int dn = dy*4 + dx;
 
                             Pixel ap = p;
-                            Pixel mp = (m.g == 0 ? p : mix(np, cast(ubyte) m.g));
+                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
 
                             byte pa = pixarea[dn];
                             byte a = cast(byte) (pixareas4[49][dn] - pa);

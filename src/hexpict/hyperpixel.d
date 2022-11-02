@@ -115,12 +115,12 @@ ulong hypermask(int x, int y, int w, int h, bool gen_areas)
                 int dy1 = y - points[p].y;
                 if (dx1 == 0)
                 {
-                    bit = (dy1 == 0);
+                    bit = (k > 0 ? dy1 == 0 : sgn(dy1) == sgn(dy));
                 }
                 else
                 {
                     double k1 = 1.0*dy1/dx1;
-                    bit = (sgn(dx1) == sgn(dx) && k1 < k);
+                    bit = (sgn(dx1) == sgn(dx) && k1 <= k);
                 }
             }
 

@@ -171,15 +171,15 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
             else
                 ix = mo + ws/2 + x*ws;
 
-            Pixel[117] aps;
-            Pixel[117] bps;
-            double[117] av_d;
+            Pixel[111] aps;
+            Pixel[111] bps;
+            double[111] av_d;
 
             int x0, y0;
 
             // @H6PMask
             mask:
-            foreach (ubyte i; 0..117)
+            foreach (ubyte i; 0..111)
             {
                 int area = 0;
                 // @PixArea
