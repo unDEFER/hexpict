@@ -147,8 +147,8 @@ void write_h6p(Image image, Image mask, string h6p_file)
             //writefln("%s => %s,%s,%s | %s", p, r, g, b, color);
 
             pix |= (color & 0x3FFFF) << 14;
-            pix |= (cast(ubyte) m.r & 0xFF) << 6;
-            pix |= (cast(ubyte) m.g & 0x03) << 4;
+            pix |= (cast(ubyte) m.g & 0x07) << 10;
+            pix |= (cast(ubyte) m.r & 0xFF) << 4;
             pix |= (cast(ubyte) m.b & 0x0F);
 
             content[16+(y*w+x)*4..16+(y*w+x+1)*4] = nativeToBigEndian(pix);
@@ -197,8 +197,8 @@ void read_h6p(string h6p_file, ref Image image, ref Image mask)
             imgdata[(y*w + x)*3 + 1] = cast(ubyte) p.g;
             imgdata[(y*w + x)*3 + 2] = cast(ubyte) p.b;
 
-            maskdata[(y*w + x)*3 + 0] = (pix >> 6) & 0xFF;
-            maskdata[(y*w + x)*3 + 1] = (pix >> 4) & 0x03;
+            maskdata[(y*w + x)*3 + 1] = (pix >> 10) & 0x07;
+            maskdata[(y*w + x)*3 + 0] = (pix >> 4) & 0xFF;
             maskdata[(y*w + x)*3 + 2] = pix & 0x0F;
         }
     }
