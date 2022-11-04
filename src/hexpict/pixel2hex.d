@@ -824,7 +824,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
             aimgdata[(y*nw + x)*3 + 2] = cast(ubyte) dp.b;
 
             maskdata[(y*nw + x)*3 + 0] = cast(ubyte) (m & 0xFF);
-            maskdata[(y*nw + x)*3 + 1] = cast(ubyte) ((m >> 8) & 0x07);
+            maskdata[(y*nw + x)*3 + 1] = cast(ubyte) ((m >> 8) & 0x03);
         }
     }
 
