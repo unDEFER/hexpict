@@ -13,6 +13,7 @@
 
 module hexpict.hyperpixel;
 
+import std.algorithm;
 import std.math;
 import std.stdio;
 import std.conv;
@@ -26,6 +27,172 @@ byte[11][50] pixareas1;
 byte[16][50] pixareas2;
 byte[24][50] pixareas3;
 byte[20][50] pixareas4;
+
+ulong[655] forms;
+
+// @H6PMask
+private void gen_forms()
+{
+    int iform;
+
+    forms[iform] = (1UL << 49);
+    iform++;
+
+    bool[ulong] unique;
+
+    foreach(s; 3..7)
+    {
+        foreach(p; 0..12)
+        {
+            ulong form = (1UL << ((s-3)*12 + p));
+            forms[iform] = form;
+            iform++;
+            unique[form] = true;
+        }
+    }
+
+    foreach(s; 3..7)
+    {
+        foreach(p; 0..12)
+        {
+            int p1 = p + s;
+            p1 = p1 % 12;
+
+            ulong form1 = (1UL << ((s-3)*12 + p));
+            foreach(pp; 0..12-3-s+1)
+            {
+                int p2 = p1 + pp;
+                p2 = p2 % 12;
+                int till = 12-s-pp;
+                if (s == 6 && till == 6) till--;
+                foreach(ss; 3..min(6, till)+1)
+                {
+                    int p3 = p2 + ss;
+                    p3 = p3 % 12;
+
+                    ulong form = form1 | (1UL << ((ss-3)*12 + p2));
+                    if (form !in unique)
+                    {
+                        forms[iform] = form;
+                        iform++;
+                        unique[form] = true;
+                    }
+                }
+            }
+        }
+    }
+
+    foreach(s; 3..7)
+    {
+        foreach(p; 0..12)
+        {
+            int p1 = p + s;
+            double p05 = (p + p1)/2.0;
+            if (p05 >= 12) p05 -= 12;
+            p1 = p1 % 12;
+
+            ulong form1 = (1UL << ((s-3)*12 + p));
+            foreach(pp; 0..12-3-s+1)
+            {
+                int p2 = p1 + pp;
+                p2 = p2 % 12;
+                foreach(ss; 3..min(6, 12-s-pp)+1)
+                {
+                    int p3 = p2 + ss;
+                    p3 = p3 % 12;
+
+                    ulong form2 = form1 | (1UL << ((ss-3)*12 + p2));
+                    foreach(pp2; 0..12-3-s-ss-pp+1)
+                    {
+                        int p4 = p3 + pp2;
+                        p4 = p4 % 12;
+
+                        foreach(ss2; 3..min(6, 12-s-ss-pp-pp2)+1)
+                        {
+                            int p5 = p4 + ss2;
+                            p5 = p5%12;
+
+                            ulong form = form2 | (1UL << ((ss2-3)*12 + p4));
+                            if (form !in unique)
+                            {
+                                forms[iform] = form;
+                                iform++;
+                                unique[form] = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    foreach(s; 3..7)
+    {
+        foreach(p; 0..12)
+        {
+            int p1 = p + s;
+            double p05 = (p + p1)/2.0;
+            if (p05 >= 12) p05 -= 12;
+            p1 = p1 % 12;
+
+            ulong form1 = (1UL << ((s-3)*12 + p));
+            foreach(pp; 0..12-3-s+1)
+            {
+                int p2 = p1 + pp;
+                p2 = p2 % 12;
+                foreach(ss; 3..min(6, 12-s-pp)+1)
+                {
+                    int p3 = p2 + ss;
+                    p3 = p3 % 12;
+
+                    ulong form2 = form1 | (1UL << ((ss-3)*12 + p2));
+                    foreach(pp2; 0..12-3-s-ss-pp+1)
+                    {
+                        int p4 = p3 + pp2;
+                        p4 = p4 % 12;
+
+                        foreach(ss2; 3..min(6, 12-s-ss-pp-pp2)+1)
+                        {
+                            int p5 = p4 + ss2;
+                            p5 = p5%12;
+
+                            ulong form3 = form2 | (1UL << ((ss2-3)*12 + p4));
+                            foreach(pp3; 0..12-3-s-ss-ss2-pp-pp2+1)
+                            {
+                                int p6 = p5 + pp3;
+                                p6 = p6 % 12;
+
+                                foreach(ss3; 3..min(6, 12-s-ss-ss2-pp-pp2-pp3)+1)
+                                {
+                                    int p7 = p6 + ss2;
+                                    p7 = p7%12;
+
+                                    ulong form = form3 | (1UL << ((ss3-3)*12 + p6));
+                                    if (form !in unique)
+                                    {
+                                        forms[iform] = form;
+                                        iform++;
+                                        unique[form] = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    forms[iform] = (1UL << 48);
+    iform++;
+
+    assert(iform == 655);
+}
+
+static this()
+{
+    gen_forms();
+}
 
 /*
  * Generates mask of ingoing in areas of hyperpixel

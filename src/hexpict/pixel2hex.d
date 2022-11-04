@@ -28,7 +28,7 @@ import hexpict.hyperpixel;
  * Convert `inpict` png-file into `outpict` h6p image
  * with `scale` scaledown
  */
-void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
+void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_png = false)
 {
     IMGError err;
     Image image = load(inpict, err);
@@ -156,6 +156,12 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
     ubyte[] aimgdata = new ubyte[nw*nh*3];
     ubyte[] maskdata = new ubyte[nw*nh*3];
 
+    short nf = full ? 655 : 49;
+
+    Pixel[] aps = new Pixel[nf];
+    Pixel[] bps = new Pixel[nf];
+    double[] av_d = new double[nf];
+
     // @GenerateAreaMasks
     foreach (y; 0..nh)
     {
@@ -171,15 +177,11 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
             else
                 ix = mo + ws/2 + x*ws;
 
-            Pixel[111] aps;
-            Pixel[111] bps;
-            double[111] av_d;
-
             int x0, y0;
 
             // @H6PMask
             mask:
-            foreach (ubyte i; 0..111)
+            foreach (i, f; forms[0..nf])
             {
                 int area = 0;
                 // @PixArea
@@ -191,73 +193,13 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
                 ubyte[4] nareas;
                 int na = 0;
 
-                if (i == 0)
+                foreach(ubyte a; 0..50)
                 {
-                    nareas[0] = 49;
-                    na = 1;
-                }
-                else
-                {
-                    i--;
-                    if (i >= 0 && i < 48)
+                    if (f & (1UL << a))
                     {
-                        nareas[0] = i;
-                        na = 1;
+                        nareas[na] = a;
+                        na++;
                     }
-                    else if (i >= 48 && i < 60)
-                    {
-                        nareas[0] = cast(ubyte)(i-48);
-                        nareas[1] = cast(ubyte)((i-48 + 6)%12);
-                        na = 2;
-                    }
-                    else if (i >= 60 && i < 72)
-                    {
-                        nareas[0] = cast(ubyte)(i-60);
-                        nareas[1] = cast(ubyte)(24 + (i-60 + 5)%12);
-                        na = 2;
-                    }
-                    else if (i >= 72 && i < 75)
-                    {
-                        nareas[0] = cast(ubyte)(i-72);
-                        nareas[1] = cast(ubyte)((i-72 + 3)%12);
-                        nareas[2] = cast(ubyte)((i-72 + 6)%12);
-                        nareas[3] = cast(ubyte)((i-72 + 9)%12);
-                        na = 4;
-                    }
-                    else if (i >= 75 && i < 87)
-                    {
-                        ubyte j = cast(ubyte)(i - 75);
-                        nareas[0] = cast(ubyte)(12 + j);
-                        nareas[1] = cast(ubyte)(12 + (j + 4)%12);
-                        na = 2;
-                    }
-                    else if (i >= 87 && i < 93)
-                    {
-                        ubyte j = cast(ubyte)(i - 87);
-                        nareas[0] = cast(ubyte)(12 + j);
-                        nareas[1] = cast(ubyte)(12 + (j + 6)%12);
-                        na = 2;
-                    }
-                    else if (i >= 93 && i < 105)
-                    {
-                        ubyte j = cast(ubyte)(i - 93);
-                        nareas[0] = cast(ubyte)(12 + (j%6)*2);
-                        nareas[1] = cast(ubyte)(36 + ((j%6)*2 + 4 + (j/6)*2)%12);
-                        na = 2;
-                    }
-                    else if (i >= 105 && i < 109)
-                    {
-                        nareas[0] = cast(ubyte)(12 + (i-105));
-                        nareas[1] = cast(ubyte)(12 + (i-105 + 4)%12);
-                        nareas[2] = cast(ubyte)(12 + (i-105 + 8)%12);
-                        na = 3;
-                    }
-                    else if (i == 109)
-                    {
-                        nareas[0] = 48;
-                        na = 1;
-                    }
-                    i++;
                 }
 
                 foreach (d; nareas[0..na])
@@ -269,6 +211,8 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
                             foreach (dn; 0..11)
                             {
                                 pixarea[dn] += pixareas1[d][dn];
+                                if (pixarea[dn] > pixareas1[49][dn])
+                                    pixarea[dn] = pixareas1[49][dn];
                             }
 
                             area += areas[d];
@@ -278,6 +222,8 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
                             foreach (dn; 0..16)
                             {
                                 pixarea[dn] += pixareas2[d][dn];
+                                if (pixarea[dn] > pixareas2[49][dn])
+                                    pixarea[dn] = pixareas2[49][dn];
                             }
 
                             area += areas[d];
@@ -290,6 +236,8 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
                             foreach (dn; 0..24)
                             {
                                 pixarea[dn] += pixareas3[d][dn];
+                                if (pixarea[dn] > pixareas3[49][dn])
+                                    pixarea[dn] = pixareas3[49][dn];
                             }
 
                             area += areas[d];
@@ -299,6 +247,8 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
                             foreach (dn; 0..20)
                             {
                                 pixarea[dn] += pixareas4[d][dn];
+                                if (pixarea[dn] > pixareas4[49][dn])
+                                    pixarea[dn] = pixareas4[49][dn];
                             }
 
                             area += areas[d];
@@ -588,6 +538,20 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
                     ab /= area;
                 }
 
+                assert(r <= 255);
+                assert(g <= 255);
+                assert(b <= 255);
+                /*if (ar > 255 || ag > 255 || ab > 255)
+                {
+                    writefln("%sx%s a=%s,%s,%s, area=%s, areas[49]=%s, i = %s", x, y, ar, ag, ab, area, areas[49], i);
+                }*/
+                assert(ar <= 260);
+                assert(ag <= 260);
+                assert(ab <= 260);
+                if (ar > 255) ar = 255;
+                if (ag > 255) ag = 255;
+                if (ab > 255) ab = 255;
+
                 Pixel ap = Pixel(r, g, b, 255);
                 Pixel bp = Pixel(ar, ag, ab, 255);
                 //if (ar == 0 && ag == 0 && ab == 0)
@@ -598,16 +562,16 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
                 av_d[i] = dist(ap, bp);
             }
 
-            ubyte m;
+            ushort m;
 
             int max_d;
             double max_dist = 0.0;
 
-            foreach (int d, av; av_d)
+            foreach (d, av; av_d)
             {
                 if (av > max_dist)
                 {
-                    max_d = d;
+                    max_d = cast(int) d;
                     max_dist = av;
                 }
             }
@@ -619,18 +583,11 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
             }
             else
             {
-                m = cast(ubyte) max_d;
+                m = cast(ushort) max_d;
             }
 
             Pixel ap = bps[max_d];
             Pixel dp = aps[max_d];
-                                /*if (abs(x - 42) <= 0 && abs(y - 6) <= 0)
-                                {
-                                    writefln("%sx%s (%sx%s): ap=%s dp=%s m=%s", x0, y0, x, y, ap, dp, m);
-                                    writefln("dist %s", av_d);
-                                    writefln("base %s, %s", aps[m], aps[6]);
-                                    writefln("compl %s, %s", bps[m], bps[6]);
-                                }*/
             if (y0 < 0) y0 = 0;
             Pixel p = image[x0, y0];
             Pixel sp = image[x0, y0];
@@ -866,7 +823,8 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
             aimgdata[(y*nw + x)*3 + 1] = cast(ubyte) dp.g;
             aimgdata[(y*nw + x)*3 + 2] = cast(ubyte) dp.b;
 
-            maskdata[(y*nw + x)*3 + 0] = m;
+            maskdata[(y*nw + x)*3 + 0] = cast(ubyte) (m & 0xFF);
+            maskdata[(y*nw + x)*3 + 1] = cast(ubyte) ((m >> 8) & 0x03);
         }
     }
 
@@ -890,7 +848,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
                 ix = 2.5+x*3;
 
             Pixel m0 = mask[x, y];
-            if (m0.r == 0) continue;
+            if (m0.r == 0 && m0.g == 0) continue;
 
             Point[6] neigh;
 
@@ -920,38 +878,70 @@ void pixel2hex(string inpict, string outpict, int scale, bool debug_png = false)
             Pixel p0 = img[x, y];
             Pixel p1 = aimg[x, y];
 
-            Pixel[7] np;
+            Pixel[6] np;
+            Pixel[6] mnp;
 
-            foreach(i, ref n; np[1..7])
+            foreach(i, ref n; np)
             {
                 if (neigh[i].x >= 0 && neigh[i].x < nw &&
                         neigh[i].y >= 0 && neigh[i].y < nh)
+                {
                     n = img[neigh[i].x, neigh[i].y];
+                    mnp = mask[neigh[i].x, neigh[i].y];
+                }
                 else
                     n = p0;
             }
 
-            np[0] = p0;
-
             ubyte m;
             double min_dist = double.max;
-            foreach(ubyte s; 1..128)
+
+            ubyte m2;
+            double min_dist2 = double.max;
+            bool dont_swap;
+
+            foreach(ubyte s; 0..6)
             {
                 Pixel ap = mix(np, s);
                 double md = dist(ap, p1);
+                double md2 = dist(ap, p0);
                 if (md < min_dist)
                 {
                     m = s;
                     min_dist = md;
                 }
+                if (md2 < min_dist2)
+                {
+                    m2 = s;
+                    min_dist2 = md2;
+                }
+                if ((mnp[s].r != 0 || mnp[s].g != 0) && (mnp[s].b & 0x7) == (s + 3)%6)
+                    dont_swap = true;
+            }
+
+            Pixel ap1 = mix(np, m);
+            Pixel ap2 = mix(np, m2);
+
+            if (min_dist2 < dist(p0, p1) && min_dist2 < min_dist &&
+                    !dont_swap)
+            {
+                swap(m, m2);
+                swap(min_dist, min_dist2);
+
+                swap( imgdata[(y*nw + x)*3 + 0],  aimgdata[(y*nw + x)*3 + 0] );
+                swap( imgdata[(y*nw + x)*3 + 1],  aimgdata[(y*nw + x)*3 + 1] );
+                swap( imgdata[(y*nw + x)*3 + 2],  aimgdata[(y*nw + x)*3 + 2] );
+                m |= 8;
             }
 
             if (min_dist > dist(p0, p1))
             {
                 maskdata[(y*nw + x)*3 + 0] = 0;
+                maskdata[(y*nw + x)*3 + 1] = 0;
+                m = 0;
             }
 
-            maskdata[(y*nw + x)*3 + 1] = m;
+            maskdata[(y*nw + x)*3 + 2] = m;
         }
     }
 

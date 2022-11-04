@@ -49,32 +49,11 @@ Pixel mix(Pixel p1, Pixel p2, Pixel p3)
 }
 
 /*
- * Mix till 7 colors ps according to mask m in RGB color space.
- * each bit of mask means one of color in ps.
- * E.g. m=1 means ps[0] without mix.
- *      m=2 means ps[1] without mix.
- *      m=3 means mix of ps[0] and ps[1].
+ * Choose color
  */
-Pixel mix(Pixel[7] ps, ubyte m)
+Pixel mix(Pixel[6] ps, ubyte m)
 {
-    Pixel p;
-    int n;
-    foreach (i, p1; ps)
-    {
-        if (m & (1 << i))
-        {
-            p.r += p1.r;
-            p.g += p1.g;
-            p.b += p1.b;
-            n++;
-        }
-    }
-
-    p.r /= n;
-    p.g /= n;
-    p.b /= n;
-
-    return p;
+    return ps[m & 0x7];
 }
 
 /*

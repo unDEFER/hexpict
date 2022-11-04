@@ -29,6 +29,7 @@ private void usage()
     writeln("   where options:");
     writeln("   -s, --scale <num> -- down-scale into times (1, 3 or 4)");
     writeln("                        default 3.");
+    writeln("   -f, --full        -- slow, but full enumeration of all forms.");
     writeln("   -d, --debug       -- writes debug_hex.png and debug_mask.png");
     writeln("                        files.");
 }
@@ -42,6 +43,7 @@ int pixel2hex(string[] args)
     string fromfile, tofile;
     int scale = 3;
     bool dbg;
+    bool full;
 
     int i = 1;
     loop:
@@ -53,6 +55,11 @@ int pixel2hex(string[] args)
             case "--scale":
                 scale = args[i+1].to!(int);
                 i++;
+                break;
+
+            case "-f":
+            case "--full":
+                full = true;
                 break;
 
             case "-d":
@@ -77,7 +84,7 @@ int pixel2hex(string[] args)
     fromfile = args[i];
     tofile = args[i+1];
 
-    hexpict.pixel2hex.pixel2hex(fromfile, tofile, scale, dbg);
+    hexpict.pixel2hex.pixel2hex(fromfile, tofile, scale, full, dbg);
     return 0;
 }
 

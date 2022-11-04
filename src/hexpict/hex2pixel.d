@@ -203,7 +203,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                 {
                     ix = cast(int) (2.0+4.0*x);
                 }
-
+                else
                 {
                     ix = hpw/2+hpw*x;
                 }
@@ -212,9 +212,9 @@ void hex2pixel(string inpict, string outpict, int scale)
             }
 
             // @MixNeighbours
-            Pixel[7] np;
+            Pixel[6] np;
 
-            foreach(i, ref n; np[1..7])
+            foreach(i, ref n; np)
             {
                 if (neigh[i].x >= 0 && neigh[i].x < iw &&
                         neigh[i].y >= 0 && neigh[i].y < ih)
@@ -222,8 +222,6 @@ void hex2pixel(string inpict, string outpict, int scale)
                 else
                     n = p;
             }
-
-            np[0] = p;
 
             /*if (x == 4 && y == 6)
             {
@@ -234,79 +232,20 @@ void hex2pixel(string inpict, string outpict, int scale)
             byte[24] pixarea;
             if (scale == 3 || scale == 4)
             {
-                ubyte i = cast(ubyte) m.r;
+                ushort i = cast(ushort) (m.r | (m.g << 8));
+                ulong f = forms[i];
 
                 ubyte[4] nareas;
                 int na = 0;
 
                 // @H6PMask
-                if (i == 0)
+                foreach(ubyte a; 0..50)
                 {
-                    nareas[0] = 49;
-                    na = 1;
-                }
-                else
-                {
-                    i--;
-                    if (i >= 0 && i < 48)
+                    if (f & (1UL << a))
                     {
-                        nareas[0] = i;
-                        na = 1;
+                        nareas[na] = a;
+                        na++;
                     }
-                    else if (i >= 48 && i < 60)
-                    {
-                        nareas[0] = cast(ubyte)(i-48);
-                        nareas[1] = cast(ubyte)((i-48 + 6)%12);
-                        na = 2;
-                    }
-                    else if (i >= 60 && i < 72)
-                    {
-                        nareas[0] = cast(ubyte)(i-60);
-                        nareas[1] = cast(ubyte)(24 + (i-60 + 5)%12);
-                        na = 2;
-                    }
-                    else if (i >= 72 && i < 75)
-                    {
-                        nareas[0] = cast(ubyte)(i-72);
-                        nareas[1] = cast(ubyte)((i-72 + 3)%12);
-                        nareas[2] = cast(ubyte)((i-72 + 6)%12);
-                        nareas[3] = cast(ubyte)((i-72 + 9)%12);
-                        na = 4;
-                    }
-                    else if (i >= 75 && i < 87)
-                    {
-                        ubyte j = cast(ubyte)(i - 75);
-                        nareas[0] = cast(ubyte)(12 + j);
-                        nareas[1] = cast(ubyte)(12 + (j + 4)%12);
-                        na = 2;
-                    }
-                    else if (i >= 87 && i < 93)
-                    {
-                        ubyte j = cast(ubyte)(i - 87);
-                        nareas[0] = cast(ubyte)(12 + j);
-                        nareas[1] = cast(ubyte)(12 + (j + 6)%12);
-                        na = 2;
-                    }
-                    else if (i >= 93 && i < 105)
-                    {
-                        ubyte j = cast(ubyte)(i - 93);
-                        nareas[0] = cast(ubyte)(12 + (j%6)*2);
-                        nareas[1] = cast(ubyte)(36 + ((j%6)*2 + 4 + (j/6)*2)%12);
-                        na = 2;
-                    }
-                    else if (i >= 105 && i < 109)
-                    {
-                        nareas[0] = cast(ubyte)(12 + (i-105));
-                        nareas[1] = cast(ubyte)(12 + (i-105 + 4)%12);
-                        nareas[2] = cast(ubyte)(12 + (i-105 + 8)%12);
-                        na = 3;
-                    }
-                    else if (i == 109)
-                    {
-                        nareas[0] = 48;
-                        na = 1;
-                    }
-                    i++;
                 }
 
                 foreach (d; nareas[0..na])
@@ -362,7 +301,8 @@ void hex2pixel(string inpict, string outpict, int scale)
                             int dn = 1 + dy*3 + dx;
 
                             Pixel ap = p;
-                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
+                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.b));
+                            if (m.b & 0x8) swap(ap, mp);
 
                             byte pa = pixarea[dn];
                             byte a = cast(byte) (pixareas1[49][dn] - pa);
@@ -389,7 +329,8 @@ void hex2pixel(string inpict, string outpict, int scale)
                         int dn = 0;
 
                         Pixel ap = p;
-                        Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
+                        Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.b));
+                        if (m.b & 0x8) swap(ap, mp);
 
                         byte pa = pixarea[dn];
                         byte a = cast(byte) (pixareas1[49][dn] - pa);
@@ -414,7 +355,8 @@ void hex2pixel(string inpict, string outpict, int scale)
                         int dn = 10;
 
                         Pixel ap = p;
-                        Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
+                        Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.b));
+                        if (m.b & 0x8) swap(ap, mp);
 
                         byte pa = pixarea[dn];
                         byte a = cast(byte) (pixareas1[49][dn] - pa);
@@ -445,7 +387,8 @@ void hex2pixel(string inpict, string outpict, int scale)
                             int dn = dy*4 + dx;
 
                             Pixel ap = p;
-                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
+                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.b));
+                            if (m.b & 0x8) swap(ap, mp);
 
                             byte pa = pixarea[dn];
                             byte a = cast(byte) (pixareas2[49][dn] - pa);
@@ -483,7 +426,8 @@ void hex2pixel(string inpict, string outpict, int scale)
                             int dn = dy*4 + dx;
 
                             Pixel ap = p;
-                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
+                            Pixel mp = (m.r == 0 && m.g == 0 ? p : mix(np, cast(ubyte) m.b));
+                            if (m.b & 0x8) swap(ap, mp);
 
                             byte pa = pixarea[dn];
                             byte a = cast(byte) (pixareas3[49][dn] - pa);
@@ -515,7 +459,8 @@ void hex2pixel(string inpict, string outpict, int scale)
                             int dn = dy*4 + dx;
 
                             Pixel ap = p;
-                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.g));
+                            Pixel mp = (m.r == 0 && m.g == 0 ? p : mix(np, cast(ubyte) m.b));
+                            if (m.b & 0x8) swap(ap, mp);
 
                             byte pa = pixarea[dn];
                             byte a = cast(byte) (pixareas4[49][dn] - pa);
@@ -540,80 +485,22 @@ void hex2pixel(string inpict, string outpict, int scale)
             else
             {
                 // @BigScaleNotes
-                ubyte i = cast(ubyte) m.r;
+                ushort i = cast(ushort) (m.r | (m.g << 8));
+                ulong f = forms[i];
 
                 ubyte[4] nareas;
                 int na = 0;
 
                 // @H6PMask
-                if (i == 0)
+                foreach(ubyte a; 0..50)
                 {
-                    nareas[0] = 49;
-                    na = 1;
+                    if (f & (1UL << a))
+                    {
+                        nareas[na] = a;
+                        na++;
+                    }
                 }
-                else
-                {
-                    i--;
-                    if (i >= 0 && i < 48)
-                    {
-                        nareas[0] = i;
-                        na = 1;
-                    }
-                    else if (i >= 48 && i < 60)
-                    {
-                        nareas[0] = cast(ubyte)(i-48);
-                        nareas[1] = cast(ubyte)((i-48 + 6)%12);
-                        na = 2;
-                    }
-                    else if (i >= 60 && i < 72)
-                    {
-                        nareas[0] = cast(ubyte)(i-60);
-                        nareas[1] = cast(ubyte)(24 + (i-60 + 5)%12);
-                        na = 2;
-                    }
-                    else if (i >= 72 && i < 75)
-                    {
-                        nareas[0] = cast(ubyte)(i-72);
-                        nareas[1] = cast(ubyte)((i-72 + 3)%12);
-                        nareas[2] = cast(ubyte)((i-72 + 6)%12);
-                        nareas[3] = cast(ubyte)((i-72 + 9)%12);
-                        na = 4;
-                    }
-                    else if (i >= 75 && i < 87)
-                    {
-                        ubyte j = cast(ubyte)(i - 75);
-                        nareas[0] = cast(ubyte)(12 + j);
-                        nareas[1] = cast(ubyte)(12 + (j + 4)%12);
-                        na = 2;
-                    }
-                    else if (i >= 87 && i < 93)
-                    {
-                        ubyte j = cast(ubyte)(i - 87);
-                        nareas[0] = cast(ubyte)(12 + j);
-                        nareas[1] = cast(ubyte)(12 + (j + 6)%12);
-                        na = 2;
-                    }
-                    else if (i >= 93 && i < 105)
-                    {
-                        ubyte j = cast(ubyte)(i - 93);
-                        nareas[0] = cast(ubyte)(12 + (j%6)*2);
-                        nareas[1] = cast(ubyte)(36 + ((j%6)*2 + 4 + (j/6)*2)%12);
-                        na = 2;
-                    }
-                    else if (i >= 105 && i < 109)
-                    {
-                        nareas[0] = cast(ubyte)(12 + (i-105));
-                        nareas[1] = cast(ubyte)(12 + (i-105 + 4)%12);
-                        nareas[2] = cast(ubyte)(12 + (i-105 + 8)%12);
-                        na = 3;
-                    }
-                    else if (i == 109)
-                    {
-                        nareas[0] = 48;
-                        na = 1;
-                    }
-                    i++;
-                }
+
                 /*
                 if (x == 239 && y == 125)
                 {
@@ -628,6 +515,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                         {
                             Pixel mp = p;
 
+                            bool ec;
                             //static if (false)
                             if (i > 0)
                             {
@@ -635,9 +523,15 @@ void hex2pixel(string inpict, string outpict, int scale)
                                 {
                                     if (hp[dx + dy*hpw] & (1UL << d))
                                     {
-                                        mp = mix(np, cast(ubyte) m.g);
+                                        ec = true;
+                                        break;
                                     }
                                 }
+                            }
+
+                            if (m.b & 0x8 ? !ec : ec)
+                            {
+                                mp = mix(np, cast(ubyte) m.b);
                             }
 
                             imgdata[((iy+dy)*nw + ix+dx)*3 + 0] = cast(ubyte) mp.r;

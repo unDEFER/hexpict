@@ -85,7 +85,7 @@ void write_h6p(Image image, Image mask, string h6p_file)
 {
     if (color_pal.length == 0) generate_palette();
 
-    uint fileversion = 1;
+    uint fileversion = 2;
     uint w = image.width;
     uint h = image.height;
 
@@ -147,8 +147,9 @@ void write_h6p(Image image, Image mask, string h6p_file)
             //writefln("%s => %s,%s,%s | %s", p, r, g, b, color);
 
             pix |= (color & 0x3FFFF) << 14;
-            pix |= (cast(ubyte) m.r & 0x7F) << 7;
-            pix |= (cast(ubyte) m.g & 0x7F);
+            pix |= (cast(ubyte) m.r & 0xFF) << 6;
+            pix |= (cast(ubyte) m.g & 0x03) << 4;
+            pix |= (cast(ubyte) m.b & 0x0F);
 
             content[16+(y*w+x)*4..16+(y*w+x+1)*4] = nativeToBigEndian(pix);
         }
@@ -171,7 +172,7 @@ void read_h6p(string h6p_file, ref Image image, ref Image mask)
     assert(magic == "HexP", "Wrong magic number, not `h6p` file");
 
     uint fileversion = bigEndianToNative!uint(content[4..8]);
-    assert(fileversion == 1, "Wrong file version");
+    assert(fileversion == 2, "Wrong file version");
 
     uint w = bigEndianToNative!uint(content[8..12]);
     uint h = bigEndianToNative!uint(content[12..16]);
@@ -196,8 +197,9 @@ void read_h6p(string h6p_file, ref Image image, ref Image mask)
             imgdata[(y*w + x)*3 + 1] = cast(ubyte) p.g;
             imgdata[(y*w + x)*3 + 2] = cast(ubyte) p.b;
 
-            maskdata[(y*w + x)*3 + 0] = (pix >> 7) & 0x7F;
-            maskdata[(y*w + x)*3 + 1] = pix & 0x7F;
+            maskdata[(y*w + x)*3 + 0] = (pix >> 6) & 0xFF;
+            maskdata[(y*w + x)*3 + 1] = (pix >> 4) & 0x03;
+            maskdata[(y*w + x)*3 + 2] = pix & 0x0F;
         }
     }
 
