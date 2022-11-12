@@ -22,20 +22,21 @@ import std.file;
 import imaged;
 
 // @Areas
-short[50] areas;
-byte[11][50] pixareas1;
-byte[16][50] pixareas2;
-byte[24][50] pixareas3;
-byte[20][50] pixareas4;
+enum AREAS = 56;
+short[AREAS] areas;
+byte[11][AREAS] pixareas1;
+byte[16][AREAS] pixareas2;
+byte[24][AREAS] pixareas3;
+byte[20][AREAS] pixareas4;
 
-ulong[655] forms;
+ulong[952] forms;
 
 // @H6PMask
 private void gen_forms()
 {
     int iform;
 
-    forms[iform] = (1UL << 49);
+    forms[iform] = (1UL << (AREAS-1));
     iform++;
 
     bool[ulong] unique;
@@ -183,10 +184,116 @@ private void gen_forms()
         }
     }
 
+    assert(iform == 654);
+
+    foreach(s; 4..6)
+    {
+        foreach(p; 0..12)
+        {
+            int p1 = p + s;
+            p1 = p1 % 12;
+
+            ulong form1 = (1UL << ((s-3)*12 + p));
+            foreach(ss; 3..s)
+            {
+                foreach(pp; 0..s-ss+1)
+                {
+                    int p2 = p + pp;
+                    p2 = p2 % 12;
+                    int p3 = p2 + ss;
+                    p3 = p3 % 12;
+
+                    ulong form = form1 | (1UL << ((ss-3)*12 + p2));
+                    if (form !in unique)
+                    {
+                        forms[iform] = form;
+                        iform++;
+                        unique[form] = true;
+                    }
+                }
+            }
+        }
+    }
+
+    foreach(s; 4..6)
+    {
+        foreach(p; 0..12)
+        {
+            int p1 = p + s;
+            p1 = p1 % 12;
+
+            ulong form1 = (1UL << ((s-3)*12 + p));
+
+            enum ss = 2;
+            foreach(pp; 1..s-ss+1)
+            {
+                if (pp%2 == 0) continue;
+                int p2 = p + pp;
+                p2 = p2 % 12;
+                int p3 = p2 + ss;
+                p3 = p3 % 12;
+
+                ulong form = form1 | (1UL << (48 + p2/2));
+                if (form !in unique)
+                {
+                    forms[iform] = form;
+                    iform++;
+                    unique[form] = true;
+                }
+            }
+        }
+    }
+
+    assert(iform == 774);
+
+    foreach(p; 1..12)
+    {
+        if (p%2 == 0) continue;
+
+        ulong form = (1UL << (48 + p/2));
+        forms[iform] = form;
+        iform++;
+        unique[form] = true;
+    }
+
+    foreach(s; 2..7)
+    {
+        foreach(p; 0..12)
+        {
+            if (s == 2 && p%2 == 0) continue;
+            int p1 = p + s;
+            p1 = p1 % 12;
+
+            ulong form1 = (1UL << ( (s > 2 ? (s-3)*12 + p: 48 + p/2)));
+            foreach(pp; 0..12-2-s+1)
+            {
+                int p2 = p1 + pp;
+                p2 = p2 % 12;
+                int till = 12-s-pp;
+                if (s == 6 && till == 6) till--;
+                foreach(ss; 2..min(6, till)+1)
+                {
+                    if (ss == 2 && p2%2 == 0) continue;
+                    if (s > 2 && ss > 2) continue;
+                    int p3 = p2 + ss;
+                    p3 = p3 % 12;
+
+                    ulong form = form1 | (1UL << ( (ss > 2 ? (ss-3)*12 + p2: 48 + p2/2)));
+                    if (form !in unique)
+                    {
+                        forms[iform] = form;
+                        iform++;
+                        unique[form] = true;
+                    }
+                }
+            }
+        }
+    }
+
     forms[iform] = (1UL << 48);
     iform++;
 
-    assert(iform == 655);
+    assert(iform == 952);
 }
 
 static this()
@@ -280,20 +387,62 @@ ulong hypermask(int x, int y, int w, int h, bool gen_areas)
 
                 int dx1 = x - points[p].x;
                 int dy1 = y - points[p].y;
-                if (dx1 == 0)
+                if (sgn(dx1) != sgn(dx))
                 {
-                    bit = (k > 0 ? dy1 == 0 : sgn(dy1) == sgn(dy));
+                    bit = (k > 0 ? dy1 == 0 && dx1 > 0 : sgn(dy1) == sgn(dy));
                 }
                 else
                 {
                     double k1 = 1.0*dy1/dx1;
-                    bit = (sgn(dx1) == sgn(dx) && k1 <= k);
+                    bit = k1 <= k;
                 }
             }
 
             if (bit)
                 ret |= (1UL << ((s-3)*12 + p));
         }
+    }
+
+    foreach(p; 1..12)
+    {
+        if (p%2 == 0) continue;
+        enum s = 2;
+        int p1 = p + s;
+        double p05 = (p + p1)/2.0;
+        if (p05 >= 12) p05 -= 12;
+        p1 = p1 % 12;
+
+        bool bit;
+        if (p05 == 0)
+        {
+            bit = (y < points[p].y);
+        }
+        else if (p05 == 6)
+        {
+            bit = (y >= points[p].y);
+        }
+        else
+        {
+            int dx = points[p1].x - points[p].x;
+            int dy = points[p1].y - points[p].y;
+
+            double k = 1.0*dy/dx;
+
+            int dx1 = x - points[p].x;
+            int dy1 = y - points[p].y;
+            if (sgn(dx1) != sgn(dx))
+            {
+                bit = (k > 0 ? dy1 == 0 && dx1 > 0 : sgn(dy1) == sgn(dy));
+            }
+            else
+            {
+                double k1 = 1.0*dy1/dx1;
+                bit = k1 <= k;
+            }
+        }
+
+        if (bit)
+            ret |= (1UL << (48 + p/2));
     }
 
     /* incircle */
@@ -306,9 +455,9 @@ ulong hypermask(int x, int y, int w, int h, bool gen_areas)
     bool incircle = ( (x-cx)*(x-cx) + (y-cy)*(y-cy) >= r2 );
 
     if (incircle)
-        ret |= (1UL << 48);
+        ret |= (1UL << (AREAS-2));
 
-    ret |= (1UL << 49);
+    ret |= (1UL << (AREAS-1));
 
     // @Areas
     if (gen_areas)
@@ -350,7 +499,7 @@ ulong hypermask(int x, int y, int w, int h, bool gen_areas)
         int pn4 = py*4 + px;
         if (px < 0 || px >= 4 || py < -1 || py > 4) pn4 = -1;
 
-        foreach (i; 0..49)
+        foreach (i; 0..AREAS-1)
         {
             bool r = (ret & (1UL << i)) != 0;
             if (r)
@@ -378,23 +527,23 @@ ulong hypermask(int x, int y, int w, int h, bool gen_areas)
 
         if (ret)
         {
-            areas[49]++;
+            areas[$-1]++;
 
             if (pn1 >= 0)
             {
-                pixareas1[49][pn1]++;
+                pixareas1[$-1][pn1]++;
             }
             if (pn2 >= 0)
             {
-                pixareas2[49][pn2]++;
+                pixareas2[$-1][pn2]++;
             }
             if (pn3 >= 0)
             {
-                pixareas3[49][pn3]++;
+                pixareas3[$-1][pn3]++;
             }
             if (pn4 >= 0)
             {
-                pixareas4[49][pn4]++;
+                pixareas4[$-1][pn4]++;
             }
         }
     }
@@ -474,7 +623,7 @@ bool hyperpixel(int w, bool gen_areas)
         static if (false)
         debug
         {
-            foreach(a; 0..50)
+            foreach(a; 0..AREAS)
             {
                 writefln("area %s: %s", a, areas[a]);
                 writeln();
@@ -529,15 +678,15 @@ bool hyperpixel(int w, bool gen_areas)
         {
             string filename = "hp"~w.text~"x"~h.text~"-3.areas";
             
-            ubyte[50*2 + 50*11 + 50*16] buffer;
-            buffer[0..100] = (cast(ubyte*)&areas)[0..100];
+            ubyte[AREAS*2 + AREAS*11 + AREAS*16] buffer;
+            buffer[0..AREAS*2] = (cast(ubyte*)&areas)[0..AREAS*2];
             foreach (i, pa; pixareas1)
             {
-                buffer[100+i*11..100+(i+1)*11] = cast(ubyte[]) pa[0..$];
+                buffer[AREAS*2+i*11..AREAS*2+(i+1)*11] = cast(ubyte[]) pa[0..$];
             }
             foreach (i, pa; pixareas2)
             {
-                buffer[100+550+i*16..100+550+(i+1)*16] = cast(ubyte[]) pa[0..$];
+                buffer[AREAS*2+AREAS*11+i*16..AREAS*2+AREAS*11+(i+1)*16] = cast(ubyte[]) pa[0..$];
             }
 
             std.file.write(dir ~ filename, buffer);
@@ -548,15 +697,15 @@ bool hyperpixel(int w, bool gen_areas)
         {
             string filename = "hp"~w.text~"x"~h.text~"-4.areas";
             
-            ubyte[50*2 + 50*24 + 50*20] buffer;
-            buffer[0..100] = (cast(ubyte*)&areas)[0..100];
+            ubyte[AREAS*2 + AREAS*24 + AREAS*20] buffer;
+            buffer[0..AREAS*2] = (cast(ubyte*)&areas)[0..AREAS*2];
             foreach (i, pa; pixareas3)
             {
-                buffer[100+i*24..100+(i+1)*24] = cast(ubyte[]) pa[0..$];
+                buffer[AREAS*2+i*24..AREAS*2+(i+1)*24] = cast(ubyte[]) pa[0..$];
             }
             foreach (i, pa; pixareas4)
             {
-                buffer[100+1200+i*20..100+1200+(i+1)*20] = cast(ubyte[]) pa[0..$];
+                buffer[AREAS*2+AREAS*24+i*20..AREAS*2+AREAS*24+(i+1)*20] = cast(ubyte[]) pa[0..$];
             }
 
             std.file.write(dir ~ filename, buffer);

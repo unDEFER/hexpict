@@ -45,14 +45,14 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
         {
             buffer = cast(ubyte[]) read(areas_file);
 
-            areas[0..$] = (cast(short[]) buffer[0..100])[0..50];
+            areas[0..$] = (cast(short[]) buffer[0..AREAS*2])[0..AREAS];
             foreach (i, ref pa; pixareas1)
             {
-                pa[0..$] = cast(byte[]) buffer[100+i*11..100+(i+1)*11];
+                pa[0..$] = cast(byte[]) buffer[AREAS*2+i*11..AREAS*2+(i+1)*11];
             }
             foreach (i, ref pa; pixareas2)
             {
-                pa[0..$] = cast(byte[]) buffer[100+550+i*16..100+550+(i+1)*16];
+                pa[0..$] = cast(byte[]) buffer[AREAS*2+AREAS*11+i*16..AREAS*2+AREAS*11+(i+1)*16];
             }
         }
         else
@@ -67,14 +67,14 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
         {
             buffer = cast(ubyte[]) read(areas_file);
 
-            areas[0..$] = (cast(short[]) buffer[0..100])[0..50];
+            areas[0..$] = (cast(short[]) buffer[0..AREAS*2])[0..AREAS];
             foreach (i, ref pa; pixareas3)
             {
-                pa[0..$] = cast(byte[]) buffer[100+i*24..100+(i+1)*24];
+                pa[0..$] = cast(byte[]) buffer[AREAS*2+i*24..AREAS*2+(i+1)*24];
             }
             foreach (i, ref pa; pixareas4)
             {
-                pa[0..$] = cast(byte[]) buffer[100+1200+i*20..100+1200+(i+1)*20];
+                pa[0..$] = cast(byte[]) buffer[AREAS*2+AREAS*24+i*20..AREAS*2+AREAS*24+(i+1)*20];
             }
         }
         else
@@ -156,7 +156,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
     ubyte[] aimgdata = new ubyte[nw*nh*3];
     ubyte[] maskdata = new ubyte[nw*nh*3];
 
-    short nf = full ? 655 : 49;
+    short nf = full ? forms.length : AREAS-1;
 
     Pixel[] aps = new Pixel[nf];
     Pixel[] bps = new Pixel[nf];
@@ -211,8 +211,8 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                             foreach (dn; 0..11)
                             {
                                 pixarea[dn] += pixareas1[d][dn];
-                                if (pixarea[dn] > pixareas1[49][dn])
-                                    pixarea[dn] = pixareas1[49][dn];
+                                if (pixarea[dn] > pixareas1[AREAS-1][dn])
+                                    pixarea[dn] = pixareas1[AREAS-1][dn];
                             }
 
                             area += areas[d];
@@ -222,8 +222,8 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                             foreach (dn; 0..16)
                             {
                                 pixarea[dn] += pixareas2[d][dn];
-                                if (pixarea[dn] > pixareas2[49][dn])
-                                    pixarea[dn] = pixareas2[49][dn];
+                                if (pixarea[dn] > pixareas2[AREAS-1][dn])
+                                    pixarea[dn] = pixareas2[AREAS-1][dn];
                             }
 
                             area += areas[d];
@@ -236,8 +236,8 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                             foreach (dn; 0..24)
                             {
                                 pixarea[dn] += pixareas3[d][dn];
-                                if (pixarea[dn] > pixareas3[49][dn])
-                                    pixarea[dn] = pixareas3[49][dn];
+                                if (pixarea[dn] > pixareas3[AREAS-1][dn])
+                                    pixarea[dn] = pixareas3[AREAS-1][dn];
                             }
 
                             area += areas[d];
@@ -247,8 +247,8 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                             foreach (dn; 0..20)
                             {
                                 pixarea[dn] += pixareas4[d][dn];
-                                if (pixarea[dn] > pixareas4[49][dn])
-                                    pixarea[dn] = pixareas4[49][dn];
+                                if (pixarea[dn] > pixareas4[AREAS-1][dn])
+                                    pixarea[dn] = pixareas4[AREAS-1][dn];
                             }
 
                             area += areas[d];
@@ -279,7 +279,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                                 Pixel p = image[xx, yy];
 
                                 byte pa = pixarea[dn];
-                                byte a = cast(byte) (pixareas1[49][dn] - pa);
+                                byte a = cast(byte) (pixareas1[AREAS-1][dn] - pa);
                                 if (i == 0) a = pa;
 
                                 r += pa * p.r;
@@ -299,7 +299,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                             Pixel p = image[xx, yy];
 
                             byte pa = pixarea[0];
-                            byte a = cast(byte) (pixareas1[49][0] - pa);
+                            byte a = cast(byte) (pixareas1[AREAS-1][0] - pa);
                             if (i == 0) a = pa;
 
                             r += pa * p.r;
@@ -318,7 +318,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                             Pixel p = image[xx, yy];
 
                             byte pa = pixarea[10];
-                            byte a = cast(byte) (pixareas1[49][10] - pa);
+                            byte a = cast(byte) (pixareas1[AREAS-1][10] - pa);
                             if (i == 0) a = pa;
 
                             r += pa * p.r;
@@ -349,7 +349,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                                 Pixel p = image[xx, yy];
 
                                 byte pa = pixarea[dn];
-                                byte a = cast(byte) (pixareas2[49][dn] - pa);
+                                byte a = cast(byte) (pixareas2[AREAS-1][dn] - pa);
                                 if (i == 0) a = pa;
 
                                 r += pa * p.r;
@@ -381,7 +381,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                                 Pixel p = image[x0+dx, y0+dy];
 
                                 byte pa = pixarea[dn];
-                                byte a = cast(byte) (pixareas1[49][dn] - pa);
+                                byte a = cast(byte) (pixareas1[AREAS-1][dn] - pa);
                                 if (i == 0) a = pa;
 
                                 r += pa * p.r;
@@ -399,7 +399,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                             Pixel p = image[x0+1, y0-1];
 
                             byte pa = pixarea[0];
-                            byte a = cast(byte) (pixareas1[49][0] - pa);
+                            byte a = cast(byte) (pixareas1[AREAS-1][0] - pa);
                             if (i == 0) a = pa;
 
                             r += pa * p.r;
@@ -416,7 +416,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                             Pixel p = image[x0+1, y0+3];
 
                             byte pa = pixarea[10];
-                            byte a = cast(byte) (pixareas1[49][10] - pa);
+                            byte a = cast(byte) (pixareas1[AREAS-1][10] - pa);
                             if (i == 0) a = pa;
 
                             r += pa * p.r;
@@ -443,7 +443,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                                 Pixel p = image[x0+dx, y0+dy];
 
                                 byte pa = pixarea[dn];
-                                byte a = cast(byte) (pixareas2[49][dn] - pa);
+                                byte a = cast(byte) (pixareas2[AREAS-1][dn] - pa);
                                 if (i == 0) a = pa;
 
                                 r += pa * p.r;
@@ -475,7 +475,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                                 Pixel p = image[x0+dx, y0+dy];
 
                                 byte pa = pixarea[dn];
-                                byte a = cast(byte) (pixareas3[49][dn] - pa);
+                                byte a = cast(byte) (pixareas3[AREAS-1][dn] - pa);
                                 if (i == 0) a = pa;
 
                                 r += pa * p.r;
@@ -503,7 +503,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                                 Pixel p = image[x0+dx, y0+dy];
 
                                 byte pa = pixarea[dn];
-                                byte a = cast(byte) (pixareas4[49][dn] - pa);
+                                byte a = cast(byte) (pixareas4[AREAS-1][dn] - pa);
                                 if (i == 0) a = pa;
 
                                 r += pa * p.r;
@@ -525,11 +525,11 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                     b /= area;
                 }
 
-                if (area < areas[49])
+                if (area < areas[AREAS-1])
                 {
-                    ar /= areas[49] - area;
-                    ag /= areas[49] - area;
-                    ab /= areas[49] - area;
+                    ar /= areas[AREAS-1] - area;
+                    ag /= areas[AREAS-1] - area;
+                    ab /= areas[AREAS-1] - area;
                 }
                 else if (i == 0)
                 {
@@ -543,7 +543,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                 assert(b <= 255);
                 /*if (ar > 255 || ag > 255 || ab > 255)
                 {
-                    writefln("%sx%s a=%s,%s,%s, area=%s, areas[49]=%s, i = %s", x, y, ar, ag, ab, area, areas[49], i);
+                    writefln("%sx%s a=%s,%s,%s, area=%s, areas[AREAS-1]=%s, i = %s", x, y, ar, ag, ab, area, areas[AREAS-1], i);
                 }*/
                 assert(ar <= 260);
                 assert(ag <= 260);
@@ -555,7 +555,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                 Pixel ap = Pixel(r, g, b, 255);
                 Pixel bp = Pixel(ar, ag, ab, 255);
                 //if (ar == 0 && ag == 0 && ab == 0)
-                //    writefln("%sx%s: %X %s, %s: %s < %s", x, y, i, ap, bp, area, areas[49]);
+                //    writefln("%sx%s: %X %s, %s: %s < %s", x, y, i, ap, bp, area, areas[AREAS-1]);
 
                 aps[i] = ap;
                 bps[i] = bp;

@@ -40,8 +40,10 @@ private
         color_num = num;
 
         writefln("Generate palette");
-        uint colors = 1;
+        uint colors = 0;
         uint collisions = 0;
+        color_pal[colors] = Pixel(0,0,0,0); // Transparent
+        colors++;
         foreach (z; 0..num)
         {
             foreach (y; num/4..num-num/4+1)
@@ -78,6 +80,52 @@ private
 }
 
 /*
+ * Converts RGB to color number from palette
+ * @OptimalPalette
+ */
+uint RGB2color(Pixel p)
+{
+    uint color;
+    if (p.a > 127)
+    {
+        ITP I = rgb2ITP(p);
+
+        I.I = round(I.I * (color_num-1.0))/(color_num-1.0);
+        I.T = round((I.T+.5) * (color_num-1.0))/(color_num-1.0) - .5;
+        I.P = round((I.P+.5) * (color_num-1.0))/(color_num-1.0) - .5;
+
+        RGB pc = ITP2RGB(I);
+        int dr, dg, db;
+        while (pc.r < 0 || pc.g < 0 || pc.b < 0 ||
+                pc.r > 255 || pc.g > 255 || pc.b > 255)
+        {
+            if (pc.r < 0) dr++;
+            if (pc.g < 0) dg++;
+            if (pc.b < 0) db++;
+
+            if (pc.r > 255) dr--;
+            if (pc.g > 255) dg--;
+            if (pc.b > 255) db--;
+
+            Pixel p1 = Pixel(p.r+dr, p.g+dg, p.b+db);
+            I = rgb2ITP(p1);
+
+            I.I = round(I.I * (color_num-1.0))/(color_num-1.0);
+            I.T = round((I.T+.5) * (color_num-1.0))/(color_num-1.0) - .5;
+            I.P = round((I.P+.5) * (color_num-1.0))/(color_num-1.0) - .5;
+
+            pc = ITP2RGB(I);
+            //writefln("%s", pc);
+        }
+
+        Pixel pc0 = RGB2rgb(pc);
+
+        color = color_map[pc0];
+    }
+
+    return color;
+}
+/*
  * Writes h6p-file
  * @H6PFormat
  */
@@ -104,47 +152,7 @@ void write_h6p(Image image, Image mask, string h6p_file)
             Pixel p = image[x, y];
             Pixel m = mask[x, y];
 
-            ITP I = rgb2ITP(p);
-
-            I.I = round(I.I * (color_num-1.0))/(color_num-1.0);
-            I.T = round((I.T+.5) * (color_num-1.0))/(color_num-1.0) - .5;
-            I.P = round((I.P+.5) * (color_num-1.0))/(color_num-1.0) - .5;
-
-            RGB pc = ITP2RGB(I);
-            int dr, dg, db;
-            while (pc.r < 0 || pc.g < 0 || pc.b < 0 ||
-                    pc.r > 255 || pc.g > 255 || pc.b > 255)
-            {
-                if (pc.r < 0) dr++;
-                if (pc.g < 0) dg++;
-                if (pc.b < 0) db++;
-
-                if (pc.r > 255) dr--;
-                if (pc.g > 255) dg--;
-                if (pc.b > 255) db--;
-
-                Pixel p1 = Pixel(p.r+dr, p.g+dg, p.b+db);
-                I = rgb2ITP(p1);
-
-                I.I = round(I.I * (color_num-1.0))/(color_num-1.0);
-                I.T = round((I.T+.5) * (color_num-1.0))/(color_num-1.0) - .5;
-                I.P = round((I.P+.5) * (color_num-1.0))/(color_num-1.0) - .5;
-
-                pc = ITP2RGB(I);
-                //writefln("%s", pc);
-            }
-
-            Pixel pc0 = RGB2rgb(pc);
-
-            /*
-            if (pc0 !in color_map)
-                writefln("%s not in map (%s) %s/%s/%s", pc0, I,
-                        round(I.I * (color_num-1.0)),
-                        round((I.T+.5) * (color_num-1.0)),
-                        round((I.P+.5) * (color_num-1.0)));
-            */
-            uint color = color_map[pc0];
-            //writefln("%s => %s,%s,%s | %s", p, r, g, b, color);
+            uint color = RGB2color(p);
 
             pix |= (color & 0x3FFFF) << 14;
             pix |= (cast(ubyte) m.g & 0x03) << 12;
@@ -177,8 +185,8 @@ void read_h6p(string h6p_file, ref Image image, ref Image mask)
     uint w = bigEndianToNative!uint(content[8..12]);
     uint h = bigEndianToNative!uint(content[12..16]);
 
-    ubyte[] imgdata = new ubyte[w*h*3];
-    ubyte[] maskdata = new ubyte[w*h*3];
+    ubyte[] imgdata = new ubyte[w*h*4];
+    ubyte[] maskdata = new ubyte[w*h*4];
 
     foreach (y; 0..h)
     {
@@ -193,16 +201,18 @@ void read_h6p(string h6p_file, ref Image image, ref Image mask)
 
             Pixel p = color_pal[color];
 
-            imgdata[(y*w + x)*3 + 0] = cast(ubyte) p.r;
-            imgdata[(y*w + x)*3 + 1] = cast(ubyte) p.g;
-            imgdata[(y*w + x)*3 + 2] = cast(ubyte) p.b;
+            imgdata[(y*w + x)*4 + 0] = cast(ubyte) p.r;
+            imgdata[(y*w + x)*4 + 1] = cast(ubyte) p.g;
+            imgdata[(y*w + x)*4 + 2] = cast(ubyte) p.b;
+            imgdata[(y*w + x)*4 + 3] = cast(ubyte) p.a;
 
-            maskdata[(y*w + x)*3 + 1] = (pix >> 12) & 0x03;
-            maskdata[(y*w + x)*3 + 0] = (pix >> 4) & 0xFF;
-            maskdata[(y*w + x)*3 + 2] = pix & 0x0F;
+            maskdata[(y*w + x)*4 + 1] = (pix >> 12) & 0x03;
+            maskdata[(y*w + x)*4 + 0] = (pix >> 4) & 0xFF;
+            maskdata[(y*w + x)*4 + 2] = pix & 0x0F;
+            maskdata[(y*w + x)*4 + 3] = 0;
         }
     }
 
-    image = new Img!(Px.R8G8B8)(w, h, imgdata);
-    mask = new Img!(Px.R8G8B8)(w, h, maskdata);
+    image = new Img!(Px.R8G8B8A8)(w, h, imgdata);
+    mask = new Img!(Px.R8G8B8A8)(w, h, maskdata);
 }

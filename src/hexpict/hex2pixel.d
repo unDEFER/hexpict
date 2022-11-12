@@ -47,14 +47,14 @@ void hex2pixel(string inpict, string outpict, int scale)
         {
             buffer = cast(ubyte[]) read(areas_file);
 
-            areas[0..$] = (cast(short[]) buffer[0..100])[0..50];
+            areas[0..$] = (cast(short[]) buffer[0..AREAS*2])[0..AREAS];
             foreach (i, ref pa; pixareas1)
             {
-                pa[0..$] = cast(byte[]) buffer[100+i*11..100+(i+1)*11];
+                pa[0..$] = cast(byte[]) buffer[AREAS*2+i*11..AREAS*2+(i+1)*11];
             }
             foreach (i, ref pa; pixareas2)
             {
-                pa[0..$] = cast(byte[]) buffer[100+550+i*16..100+550+(i+1)*16];
+                pa[0..$] = cast(byte[]) buffer[AREAS*2+AREAS*11+i*16..AREAS*2+AREAS*11+(i+1)*16];
             }
         }
         else
@@ -69,14 +69,14 @@ void hex2pixel(string inpict, string outpict, int scale)
         {
             buffer = cast(ubyte[]) read(areas_file);
 
-            areas[0..$] = (cast(short[]) buffer[0..100])[0..50];
+            areas[0..$] = (cast(short[]) buffer[0..AREAS*2])[0..AREAS];
             foreach (i, ref pa; pixareas3)
             {
-                pa[0..$] = cast(byte[]) buffer[100+i*24..100+(i+1)*24];
+                pa[0..$] = cast(byte[]) buffer[AREAS*2+i*24..AREAS*2+(i+1)*24];
             }
             foreach (i, ref pa; pixareas4)
             {
-                pa[0..$] = cast(byte[]) buffer[100+1200+i*20..100+1200+(i+1)*20];
+                pa[0..$] = cast(byte[]) buffer[AREAS*2+AREAS*24+i*20..AREAS*2+AREAS*24+(i+1)*20];
             }
         }
         else
@@ -130,11 +130,11 @@ void hex2pixel(string inpict, string outpict, int scale)
         nh = cast(int) ((hph-hh)*ih+hh+1);
     }
 
-    ubyte[] imgdata = new ubyte[nw*nh*3];
+    ubyte[] imgdata = new ubyte[nw*nh*4];
     ushort[] imgdata16;
     if (scale == 3 || scale == 4)
     {
-        imgdata16 = new ushort[nw*nh*4];
+        imgdata16 = new ushort[nw*nh*5];
     }
 
     foreach (y; 0..ih)
@@ -239,7 +239,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                 int na = 0;
 
                 // @H6PMask
-                foreach(ubyte a; 0..50)
+                foreach(ubyte a; 0..AREAS)
                 {
                     if (f & (1UL << a))
                     {
@@ -248,7 +248,10 @@ void hex2pixel(string inpict, string outpict, int scale)
                     }
                 }
 
-                foreach (d; nareas[0..na])
+                if (na == 2 && nareas[1] >= 48 && nareas[1] < 54)
+                   swap(nareas[0], nareas[1]);
+
+                foreach (j, d; nareas[0..na])
                 {
                     if (scale == 3)
                     {
@@ -256,14 +259,28 @@ void hex2pixel(string inpict, string outpict, int scale)
                         {
                             foreach (dn; 0..11)
                             {
-                                pixarea[dn] += pixareas1[d][dn];
+                                if (i >= 654 && i < 774 && j == 1)
+                                {
+                                    pixarea[dn] += pixareas1[AREAS-1][dn] - pixareas1[d][dn];
+                                }
+                                else
+                                {
+                                    pixarea[dn] += pixareas1[d][dn];
+                                }
                             }
                         }
                         else
                         {
                             foreach (dn; 0..16)
                             {
-                                pixarea[dn] += pixareas2[d][dn];
+                                if (i >= 654 && i < 774 && j == 1)
+                                {
+                                    pixarea[dn] += pixareas2[AREAS-1][dn] - pixareas2[d][dn];
+                                }
+                                else
+                                {
+                                    pixarea[dn] += pixareas2[d][dn];
+                                }
                             }
                         }
                     }
@@ -273,14 +290,28 @@ void hex2pixel(string inpict, string outpict, int scale)
                         {
                             foreach (dn; 0..24)
                             {
-                                pixarea[dn] += pixareas3[d][dn];
+                                if (i >= 654 && i < 774 && j == 1)
+                                {
+                                    pixarea[dn] += pixareas3[AREAS-1][dn] - pixareas3[d][dn];
+                                }
+                                else
+                                {
+                                    pixarea[dn] += pixareas3[d][dn];
+                                }
                             }
                         }
                         else
                         {
                             foreach (dn; 0..20)
                             {
-                                pixarea[dn] += pixareas4[d][dn];
+                                if (i >= 654 && i < 774 && j == 1)
+                                {
+                                    pixarea[dn] += pixareas4[AREAS-1][dn] - pixareas4[d][dn];
+                                }
+                                else
+                                {
+                                    pixarea[dn] += pixareas4[d][dn];
+                                }
                             }
                         }
                     }
@@ -305,22 +336,24 @@ void hex2pixel(string inpict, string outpict, int scale)
                             if (m.b & 0x8) swap(ap, mp);
 
                             byte pa = pixarea[dn];
-                            byte a = cast(byte) (pixareas1[49][dn] - pa);
+                            byte a = cast(byte) (pixareas1[AREAS-1][dn] - pa);
 
-                            int r, g, b;
-
+                            int r, g, b, alpha;
                             r = pa * mp.r;
                             g = pa * mp.g;
                             b = pa * mp.b;
+                            alpha = pa * mp.a;
 
                             r += a * ap.r;
                             g += a * ap.g;
                             b += a * ap.b;
+                            alpha += a * ap.a;
 
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 0] += r;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 1] += g;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 2] += b;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 3] += pa+a;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 0] += r;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 1] += g;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 2] += b;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 3] += alpha;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 4] += pa+a;
                         }
                     }
 
@@ -333,21 +366,24 @@ void hex2pixel(string inpict, string outpict, int scale)
                         if (m.b & 0x8) swap(ap, mp);
 
                         byte pa = pixarea[dn];
-                        byte a = cast(byte) (pixareas1[49][dn] - pa);
+                        byte a = cast(byte) (pixareas1[AREAS-1][dn] - pa);
 
-                        int r, g, b;
+                        int r, g, b, alpha;
                         r = pa * mp.r;
                         g = pa * mp.g;
                         b = pa * mp.b;
+                        alpha = pa * mp.a;
 
                         r += a * ap.r;
                         g += a * ap.g;
                         b += a * ap.b;
+                        alpha += a * ap.a;
 
-                        imgdata16[((iy-1)*nw + ix+1)*4 + 0] += r;
-                        imgdata16[((iy-1)*nw + ix+1)*4 + 1] += g;
-                        imgdata16[((iy-1)*nw + ix+1)*4 + 2] += b;
-                        imgdata16[((iy-1)*nw + ix+1)*4 + 3] += pa+a;
+                        imgdata16[((iy-1)*nw + ix+1)*5 + 0] += r;
+                        imgdata16[((iy-1)*nw + ix+1)*5 + 1] += g;
+                        imgdata16[((iy-1)*nw + ix+1)*5 + 2] += b;
+                        imgdata16[((iy-1)*nw + ix+1)*5 + 3] += alpha;
+                        imgdata16[((iy-1)*nw + ix+1)*5 + 4] += pa+a;
                     }
 
                     if (ix+1 < nw && iy+3 < nh)
@@ -359,21 +395,24 @@ void hex2pixel(string inpict, string outpict, int scale)
                         if (m.b & 0x8) swap(ap, mp);
 
                         byte pa = pixarea[dn];
-                        byte a = cast(byte) (pixareas1[49][dn] - pa);
+                        byte a = cast(byte) (pixareas1[AREAS-1][dn] - pa);
 
-                        int r, g, b;
+                        int r, g, b, alpha;
                         r = pa * mp.r;
                         g = pa * mp.g;
                         b = pa * mp.b;
+                        alpha = pa * mp.a;
 
                         r += a * ap.r;
                         g += a * ap.g;
                         b += a * ap.b;
+                        alpha += a * ap.a;
 
-                        imgdata16[((iy+3)*nw + ix+1)*4 + 0] += r;
-                        imgdata16[((iy+3)*nw + ix+1)*4 + 1] += g;
-                        imgdata16[((iy+3)*nw + ix+1)*4 + 2] += b;
-                        imgdata16[((iy+3)*nw + ix+1)*4 + 3] += pa+a;
+                        imgdata16[((iy+3)*nw + ix+1)*5 + 0] += r;
+                        imgdata16[((iy+3)*nw + ix+1)*5 + 1] += g;
+                        imgdata16[((iy+3)*nw + ix+1)*5 + 2] += b;
+                        imgdata16[((iy+3)*nw + ix+1)*5 + 3] += alpha;
+                        imgdata16[((iy+3)*nw + ix+1)*5 + 4] += pa+a;
                     }
                 }
                 else
@@ -391,23 +430,24 @@ void hex2pixel(string inpict, string outpict, int scale)
                             if (m.b & 0x8) swap(ap, mp);
 
                             byte pa = pixarea[dn];
-                            byte a = cast(byte) (pixareas2[49][dn] - pa);
+                            byte a = cast(byte) (pixareas2[AREAS-1][dn] - pa);
 
-                            int r, g, b;
+                            int r, g, b, alpha;
                             r = pa * mp.r;
                             g = pa * mp.g;
                             b = pa * mp.b;
+                            alpha = pa * mp.a;
 
                             r += a * ap.r;
                             g += a * ap.g;
                             b += a * ap.b;
-                            //writefln("%sx%s: %sx%s, %s*%s + %s*%s",
-                            //        x, y, dx, dy, pa, mp, a, p);
+                            alpha += a * ap.a;
 
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 0] += r;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 1] += g;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 2] += b;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 3] += pa+a;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 0] += r;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 1] += g;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 2] += b;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 3] += alpha;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 4] += pa+a;
                         }
                     }
                 }
@@ -430,21 +470,24 @@ void hex2pixel(string inpict, string outpict, int scale)
                             if (m.b & 0x8) swap(ap, mp);
 
                             byte pa = pixarea[dn];
-                            byte a = cast(byte) (pixareas3[49][dn] - pa);
+                            byte a = cast(byte) (pixareas3[AREAS-1][dn] - pa);
 
-                            int r, g, b;
+                            int r, g, b, alpha;
                             r = pa * mp.r;
                             g = pa * mp.g;
                             b = pa * mp.b;
+                            alpha = pa * mp.a;
 
                             r += a * ap.r;
                             g += a * ap.g;
                             b += a * ap.b;
+                            alpha += a * ap.a;
 
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 0] += r;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 1] += g;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 2] += b;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 3] += pa+a;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 0] += r;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 1] += g;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 2] += b;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 3] += alpha;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 4] += pa+a;
                         }
                     }
                 }
@@ -463,21 +506,24 @@ void hex2pixel(string inpict, string outpict, int scale)
                             if (m.b & 0x8) swap(ap, mp);
 
                             byte pa = pixarea[dn];
-                            byte a = cast(byte) (pixareas4[49][dn] - pa);
+                            byte a = cast(byte) (pixareas4[AREAS-1][dn] - pa);
 
-                            int r, g, b;
+                            int r, g, b, alpha;
                             r = pa * mp.r;
                             g = pa * mp.g;
                             b = pa * mp.b;
+                            alpha = pa * mp.a;
 
                             r += a * ap.r;
                             g += a * ap.g;
                             b += a * ap.b;
+                            alpha += a * ap.a;
 
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 0] += r;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 1] += g;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 2] += b;
-                            imgdata16[((iy+dy)*nw + ix+dx)*4 + 3] += pa+a;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 0] += r;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 1] += g;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 2] += b;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 3] += alpha;
+                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 4] += pa+a;
                         }
                     }
                 }
@@ -492,7 +538,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                 int na = 0;
 
                 // @H6PMask
-                foreach(ubyte a; 0..50)
+                foreach(ubyte a; 0..AREAS)
                 {
                     if (f & (1UL << a))
                     {
@@ -500,6 +546,9 @@ void hex2pixel(string inpict, string outpict, int scale)
                         na++;
                     }
                 }
+
+                if (na == 2 && nareas[1] >= 48 && nareas[1] < 54)
+                   swap(nareas[0], nareas[1]);
 
                 /*
                 if (x == 239 && y == 125)
@@ -511,7 +560,7 @@ void hex2pixel(string inpict, string outpict, int scale)
                 {
                     foreach (dx; 0..hpw)
                     {
-                        if (hp[dx + dy*hpw] & (1UL << 49))
+                        if (hp[dx + dy*hpw] & (1UL << AREAS-1))
                         {
                             Pixel mp = p;
 
@@ -519,9 +568,9 @@ void hex2pixel(string inpict, string outpict, int scale)
                             //static if (false)
                             if (i > 0)
                             {
-                                foreach (d; nareas[0..na])
+                                foreach (j, d; nareas[0..na])
                                 {
-                                    if (hp[dx + dy*hpw] & (1UL << d))
+                                    if ( (hp[dx + dy*hpw] & (1UL << d) ? 1 : 0) ^ (i >= 654 && i < 774 && j == 1) )
                                     {
                                         ec = true;
                                         break;
@@ -534,9 +583,10 @@ void hex2pixel(string inpict, string outpict, int scale)
                                 mp = mix(np, cast(ubyte) m.b);
                             }
 
-                            imgdata[((iy+dy)*nw + ix+dx)*3 + 0] = cast(ubyte) mp.r;
-                            imgdata[((iy+dy)*nw + ix+dx)*3 + 1] = cast(ubyte) mp.g;
-                            imgdata[((iy+dy)*nw + ix+dx)*3 + 2] = cast(ubyte) mp.b;
+                            imgdata[((iy+dy)*nw + ix+dx)*4 + 0] = cast(ubyte) mp.r;
+                            imgdata[((iy+dy)*nw + ix+dx)*4 + 1] = cast(ubyte) mp.g;
+                            imgdata[((iy+dy)*nw + ix+dx)*4 + 2] = cast(ubyte) mp.b;
+                            imgdata[((iy+dy)*nw + ix+dx)*4 + 3] = cast(ubyte) mp.a;
                         }
                     }
                 }
@@ -549,19 +599,20 @@ void hex2pixel(string inpict, string outpict, int scale)
     // @SmallScaleNotes
     if (scale == 3 || scale == 4)
     {
-        foreach (i; 0 .. imgdata16.length/4)
+        foreach (i; 0 .. imgdata16.length/5)
         {
-            ushort c = imgdata16[i*4+3];
+            ushort c = imgdata16[i*5+4];
             if (c > 0)
             {
-                imgdata[i*3+0] = cast(ubyte) (imgdata16[i*4+0] / c);
-                imgdata[i*3+1] = cast(ubyte) (imgdata16[i*4+1] / c);
-                imgdata[i*3+2] = cast(ubyte) (imgdata16[i*4+2] / c);
+                imgdata[i*4+0] = cast(ubyte) (imgdata16[i*5+0] / c);
+                imgdata[i*4+1] = cast(ubyte) (imgdata16[i*5+1] / c);
+                imgdata[i*4+2] = cast(ubyte) (imgdata16[i*5+2] / c);
+                imgdata[i*4+3] = cast(ubyte) (imgdata16[i*5+3] / c);
             }
         }
     }
 
     writefln("Writing image");
-    Image myImg = new Img!(Px.R8G8B8)(nw, nh, imgdata);
+    Image myImg = new Img!(Px.R8G8B8A8)(nw, nh, imgdata);
     myImg.write(outpict);
 }
