@@ -161,19 +161,7 @@ void hex2pixel(string inpict, string outpict, int scale)
             Pixel m = mask[x, y];
 
             // @Neighbours
-            Point[6] neigh;
-
-            neigh[5].x = x - 1;
-            neigh[5].y = y;
-
-            neigh[2].x = x + 1;
-            neigh[2].y = y;
-
-            neigh[0].y = y - 1;
-            neigh[1].y = y - 1;
-
-            neigh[4].y = y + 1;
-            neigh[3].y = y + 1;
+            Point[6] neigh = neighbours(x, y);
 
             int ix;
             if (y%2 == 0)
@@ -190,8 +178,6 @@ void hex2pixel(string inpict, string outpict, int scale)
                 {
                     ix = hpw*x;
                 }
-                neigh[0].x = neigh[4].x = x - 1;
-                neigh[1].x = neigh[3].x = x;
             }
             else
             {
@@ -207,8 +193,6 @@ void hex2pixel(string inpict, string outpict, int scale)
                 {
                     ix = hpw/2+hpw*x;
                 }
-                neigh[0].x = neigh[4].x = x;
-                neigh[1].x = neigh[3].x = x + 1;
             }
 
             // @MixNeighbours

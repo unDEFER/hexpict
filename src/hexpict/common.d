@@ -22,6 +22,39 @@ struct Point
     int x, y;
 }
 
+Point[6] neighbours(int x, int y)
+{
+    // @Neighbours
+    Point[6] neigh;
+
+    neigh[5].x = x - 1;
+    neigh[5].y = y;
+
+    neigh[2].x = x + 1;
+    neigh[2].y = y;
+
+    neigh[0].y = y - 1;
+    neigh[1].y = y - 1;
+
+    neigh[4].y = y + 1;
+    neigh[3].y = y + 1;
+
+    int ix;
+    if (y%2 == 0)
+    {
+        neigh[0].x = neigh[4].x = x - 1;
+        neigh[1].x = neigh[3].x = x;
+    }
+    else
+    {
+        neigh[0].x = neigh[4].x = x;
+        neigh[1].x = neigh[3].x = x + 1;
+    }
+
+    return neigh;
+}
+
+
 /*
  * Mix 2 colors p1 and p2 in RGB color space
  */
