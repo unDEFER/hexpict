@@ -193,7 +193,7 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                 ubyte[4] nareas;
                 int na = 0;
 
-                foreach(ubyte a; 0..50)
+                foreach(ubyte a; 0..AREAS)
                 {
                     if (f & (1UL << a))
                     {
@@ -202,56 +202,135 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                     }
                 }
 
-                foreach (d; nareas[0..na])
+                if (na == 2 && nareas[1] >= 48 && nareas[1] < 54)
+                   swap(nareas[0], nareas[1]);
+
+                foreach (j, d; nareas[0..na])
                 {
                     if (scale == 1 || scale == 3)
                     {
                         if (y%2 == 0)
                         {
+                            int md;
                             foreach (dn; 0..11)
                             {
-                                pixarea[dn] += pixareas1[d][dn];
+                                if (i >= 654 && i < 774 && j == 1)
+                                {
+                                    pixarea[dn] += pixareas1[AREAS-1][dn] - pixareas1[d][dn];
+                                }
+                                else
+                                {
+                                    pixarea[dn] += pixareas1[d][dn];
+                                }
+
                                 if (pixarea[dn] > pixareas1[AREAS-1][dn])
+                                {
+                                    md += pixarea[dn] - pixareas1[AREAS-1][dn];
                                     pixarea[dn] = pixareas1[AREAS-1][dn];
+                                }
                             }
 
-                            area += areas[d];
+                            if (i >= 654 && i < 774 && j == 1)
+                            {
+                                area += areas[AREAS-1] - areas[d] - md;
+                            }
+                            else
+                            {
+                                area += areas[d] - md;
+                            }
                         }
                         else
                         {
+                            int md;
                             foreach (dn; 0..16)
                             {
-                                pixarea[dn] += pixareas2[d][dn];
+                                if (i >= 654 && i < 774 && j == 1)
+                                {
+                                    pixarea[dn] += pixareas2[AREAS-1][dn] - pixareas2[d][dn];
+                                }
+                                else
+                                {
+                                    pixarea[dn] += pixareas2[d][dn];
+                                }
+
                                 if (pixarea[dn] > pixareas2[AREAS-1][dn])
+                                {
+                                    md += pixarea[dn] - pixareas2[AREAS-1][dn];
                                     pixarea[dn] = pixareas2[AREAS-1][dn];
+                                }
                             }
 
-                            area += areas[d];
+                            if (i >= 654 && i < 774 && j == 1)
+                            {
+                                area += areas[AREAS-1] - areas[d] - md;
+                            }
+                            else
+                            {
+                                area += areas[d] - md;
+                            }
                         }
                     }
                     else if (scale == 4)
                     {
                         if (y%2 == 0)
                         {
+                            int md;
                             foreach (dn; 0..24)
                             {
-                                pixarea[dn] += pixareas3[d][dn];
+                                if (i >= 654 && i < 774 && j == 1)
+                                {
+                                    pixarea[dn] += pixareas3[AREAS-1][dn] - pixareas3[d][dn];
+                                }
+                                else
+                                {
+                                    pixarea[dn] += pixareas3[d][dn];
+                                }
+
                                 if (pixarea[dn] > pixareas3[AREAS-1][dn])
+                                {
+                                    md += pixarea[dn] - pixareas3[AREAS-1][dn];
                                     pixarea[dn] = pixareas3[AREAS-1][dn];
+                                }
                             }
 
-                            area += areas[d];
+                            if (i >= 654 && i < 774 && j == 1)
+                            {
+                                area += areas[AREAS-1] - areas[d] - md;
+                            }
+                            else
+                            {
+                                area += areas[d] - md;
+                            }
                         }
                         else
                         {
+                            int md;
                             foreach (dn; 0..20)
                             {
-                                pixarea[dn] += pixareas4[d][dn];
+                                if (i >= 654 && i < 774 && j == 1)
+                                {
+                                    pixarea[dn] += pixareas4[AREAS-1][dn] - pixareas4[d][dn];
+                                }
+                                else
+                                {
+                                    pixarea[dn] += pixareas4[d][dn];
+                                }
+
                                 if (pixarea[dn] > pixareas4[AREAS-1][dn])
+                                {
+                                    md += pixarea[dn] - pixareas4[AREAS-1][dn];
                                     pixarea[dn] = pixareas4[AREAS-1][dn];
+                                }
                             }
 
-                            area += areas[d];
+                            if (i >= 654 && i < 774 && j == 1)
+                            {
+                                area += areas[AREAS-1] - areas[d] - md;
+                            }
+                            else
+                            {
+                                area += areas[d] - md;
+                            }
                         }
                     }
                 }
@@ -541,16 +620,13 @@ void pixel2hex(string inpict, string outpict, int scale, bool full, bool debug_p
                 assert(r <= 255);
                 assert(g <= 255);
                 assert(b <= 255);
-                /*if (ar > 255 || ag > 255 || ab > 255)
+                if (ar > 255 || ag > 255 || ab > 255)
                 {
                     writefln("%sx%s a=%s,%s,%s, area=%s, areas[AREAS-1]=%s, i = %s", x, y, ar, ag, ab, area, areas[AREAS-1], i);
-                }*/
-                assert(ar <= 260);
-                assert(ag <= 260);
-                assert(ab <= 260);
-                if (ar > 255) ar = 255;
-                if (ag > 255) ag = 255;
-                if (ab > 255) ab = 255;
+                }
+                assert(ar <= 255);
+                assert(ag <= 255);
+                assert(ab <= 255);
 
                 Pixel ap = Pixel(r, g, b, 255);
                 Pixel bp = Pixel(ar, ag, ab, 255);
