@@ -95,7 +95,7 @@ SDL_Surface *hexogrid(SDL_Surface *image, uint scale, float scaleup, int offx, i
             int dx = x0 - hx2;
             int dy = y0 - hy;
 
-            if (y < hy2)
+            if (y0 < hy2)
             {
                 hw = 1.0f*dy*hpw/hh;
 
