@@ -420,6 +420,7 @@ Tuple!(ubyte[], "form", ubyte, "rot") normalize_form(ubyte[] form)
         dir = cast(ubyte) (o.off + (dir-o.off + (6-rot)*o.r)%(6*o.r));
     }
 
+    writefln("return %s", tuple!("form", "rot")(form, rot));
     return tuple!("form", "rot")(form, rot);
 }
 
