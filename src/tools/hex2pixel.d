@@ -15,9 +15,14 @@ module tools.hex2pixel;
 
 import std.stdio;
 import std.conv;
+import std.string;
+import bindbc.sdl;
 
 import hexpict.hex2pixel;
+import hexpict.pixel2hex;
 import hexpict.hyperpixel;
+import hexpict.h6p;
+import hexpict.color;
 
 /*
  * Prints usage info. We are using it in hex2pixel() function
@@ -25,7 +30,7 @@ import hexpict.hyperpixel;
  */
 private void usage()
 {
-    writeln("Usage: hex2pixel [options] <from-file.h6p> <to-file.png>");
+    writeln("Usage: hex2pixel [options] <from-file.h6p> <to-file.bmp>");
     writeln("   Renders h6p-file into png picture.");
     writeln("   where options:");
     writeln("   -s, --scale <num> -- size of used hyperpixel (3, 4 or more)");
@@ -73,11 +78,21 @@ int hex2pixel(string[] args)
         usage();
         return 1;
     }
-
+    
     fromfile = args[i];
     tofile = args[i+1];
 
-    hexpict.hex2pixel.hex2pixel(fromfile, tofile, scale);
+    rmb_init();
+    
+    H6P *h6p = h6p_read(fromfile);
+    
+    //ubyte[5] chw = [1, 1, 1, 1, 4];
+    //H6P *h6p = test24(scale, "ITP", chw);
+    //h6p_write(h6p, fromfile);
+
+    SDL_Surface *im = h6p_render(h6p, scale);
+    SDL_SaveBMP(im, tofile.toStringz());
+    SDL_FreeSurface(im);
 
     return 0;
 }

@@ -18,537 +18,305 @@ import std.math;
 import std.stdio;
 import std.conv;
 import std.file;
+import std.bitmanip;
 
-import imaged;
+import hexpict.color;
 
-// @Areas
-enum AREAS = 56;
-short[AREAS] areas;
-byte[11][AREAS] pixareas1;
-byte[16][AREAS] pixareas2;
-byte[24][AREAS] pixareas3;
-byte[20][AREAS] pixareas4;
-
-ulong[952] forms;
-
-// @H6PMask
-private void gen_forms()
+void neighbours(int x, int y, int[][] neigh)
 {
-    int iform;
+    // @H6PNeighbours
+    neigh[5][0] = x - 1;
+    neigh[5][1] = y;
 
-    forms[iform] = (1UL << (AREAS-1));
-    iform++;
+    neigh[2][0] = x + 1;
+    neigh[2][1] = y;
 
-    bool[ulong] unique;
+    neigh[0][1] = neigh[1][1] = y - 1;
 
-    foreach(s; 3..7)
+    neigh[4][1] = neigh[3][1] = y + 1;
+
+    if (y%2 == 0)
     {
-        foreach(p; 0..12)
-        {
-            ulong form = (1UL << ((s-3)*12 + p));
-            forms[iform] = form;
-            iform++;
-            unique[form] = true;
-        }
-    }
+        neigh[4][0] = neigh[0][0] = x - 1;
 
-    foreach(s; 3..7)
+        neigh[3][0] = neigh[1][0] = x;
+    }
+    else
     {
-        foreach(p; 0..12)
-        {
-            int p1 = p + s;
-            p1 = p1 % 12;
-
-            ulong form1 = (1UL << ((s-3)*12 + p));
-            foreach(pp; 0..12-3-s+1)
-            {
-                int p2 = p1 + pp;
-                p2 = p2 % 12;
-                int till = 12-s-pp;
-                if (s == 6 && till == 6) till--;
-                foreach(ss; 3..min(6, till)+1)
-                {
-                    int p3 = p2 + ss;
-                    p3 = p3 % 12;
-
-                    ulong form = form1 | (1UL << ((ss-3)*12 + p2));
-                    if (form !in unique)
-                    {
-                        forms[iform] = form;
-                        iform++;
-                        unique[form] = true;
-                    }
-                }
-            }
-        }
+        neigh[0][0] = neigh[4][0] = x;
+        neigh[1][0] = neigh[3][0] = x + 1;
     }
-
-    foreach(s; 3..7)
-    {
-        foreach(p; 0..12)
-        {
-            int p1 = p + s;
-            double p05 = (p + p1)/2.0;
-            if (p05 >= 12) p05 -= 12;
-            p1 = p1 % 12;
-
-            ulong form1 = (1UL << ((s-3)*12 + p));
-            foreach(pp; 0..12-3-s+1)
-            {
-                int p2 = p1 + pp;
-                p2 = p2 % 12;
-                foreach(ss; 3..min(6, 12-s-pp)+1)
-                {
-                    int p3 = p2 + ss;
-                    p3 = p3 % 12;
-
-                    ulong form2 = form1 | (1UL << ((ss-3)*12 + p2));
-                    foreach(pp2; 0..12-3-s-ss-pp+1)
-                    {
-                        int p4 = p3 + pp2;
-                        p4 = p4 % 12;
-
-                        foreach(ss2; 3..min(6, 12-s-ss-pp-pp2)+1)
-                        {
-                            int p5 = p4 + ss2;
-                            p5 = p5%12;
-
-                            ulong form = form2 | (1UL << ((ss2-3)*12 + p4));
-                            if (form !in unique)
-                            {
-                                forms[iform] = form;
-                                iform++;
-                                unique[form] = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    foreach(s; 3..7)
-    {
-        foreach(p; 0..12)
-        {
-            int p1 = p + s;
-            double p05 = (p + p1)/2.0;
-            if (p05 >= 12) p05 -= 12;
-            p1 = p1 % 12;
-
-            ulong form1 = (1UL << ((s-3)*12 + p));
-            foreach(pp; 0..12-3-s+1)
-            {
-                int p2 = p1 + pp;
-                p2 = p2 % 12;
-                foreach(ss; 3..min(6, 12-s-pp)+1)
-                {
-                    int p3 = p2 + ss;
-                    p3 = p3 % 12;
-
-                    ulong form2 = form1 | (1UL << ((ss-3)*12 + p2));
-                    foreach(pp2; 0..12-3-s-ss-pp+1)
-                    {
-                        int p4 = p3 + pp2;
-                        p4 = p4 % 12;
-
-                        foreach(ss2; 3..min(6, 12-s-ss-pp-pp2)+1)
-                        {
-                            int p5 = p4 + ss2;
-                            p5 = p5%12;
-
-                            ulong form3 = form2 | (1UL << ((ss2-3)*12 + p4));
-                            foreach(pp3; 0..12-3-s-ss-ss2-pp-pp2+1)
-                            {
-                                int p6 = p5 + pp3;
-                                p6 = p6 % 12;
-
-                                foreach(ss3; 3..min(6, 12-s-ss-ss2-pp-pp2-pp3)+1)
-                                {
-                                    int p7 = p6 + ss2;
-                                    p7 = p7%12;
-
-                                    ulong form = form3 | (1UL << ((ss3-3)*12 + p6));
-                                    if (form !in unique)
-                                    {
-                                        forms[iform] = form;
-                                        iform++;
-                                        unique[form] = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    assert(iform == 654);
-
-    foreach(s; 4..6)
-    {
-        foreach(p; 0..12)
-        {
-            int p1 = p + s;
-            p1 = p1 % 12;
-
-            ulong form1 = (1UL << ((s-3)*12 + p));
-            foreach(ss; 3..s)
-            {
-                foreach(pp; 0..s-ss+1)
-                {
-                    int p2 = p + pp;
-                    p2 = p2 % 12;
-                    int p3 = p2 + ss;
-                    p3 = p3 % 12;
-
-                    ulong form = form1 | (1UL << ((ss-3)*12 + p2));
-                    if (form !in unique)
-                    {
-                        forms[iform] = form;
-                        iform++;
-                        unique[form] = true;
-                    }
-                }
-            }
-        }
-    }
-
-    foreach(s; 4..6)
-    {
-        foreach(p; 0..12)
-        {
-            int p1 = p + s;
-            p1 = p1 % 12;
-
-            ulong form1 = (1UL << ((s-3)*12 + p));
-
-            enum ss = 2;
-            foreach(pp; 1..s-ss+1)
-            {
-                if (pp%2 == 0) continue;
-                int p2 = p + pp;
-                p2 = p2 % 12;
-                int p3 = p2 + ss;
-                p3 = p3 % 12;
-
-                ulong form = form1 | (1UL << (48 + p2/2));
-                if (form !in unique)
-                {
-                    forms[iform] = form;
-                    iform++;
-                    unique[form] = true;
-                }
-            }
-        }
-    }
-
-    assert(iform == 774);
-
-    foreach(p; 1..12)
-    {
-        if (p%2 == 0) continue;
-
-        ulong form = (1UL << (48 + p/2));
-        forms[iform] = form;
-        iform++;
-        unique[form] = true;
-    }
-
-    foreach(s; 2..7)
-    {
-        foreach(p; 0..12)
-        {
-            if (s == 2 && p%2 == 0) continue;
-            int p1 = p + s;
-            p1 = p1 % 12;
-
-            ulong form1 = (1UL << ( (s > 2 ? (s-3)*12 + p: 48 + p/2)));
-            foreach(pp; 0..12-2-s+1)
-            {
-                int p2 = p1 + pp;
-                p2 = p2 % 12;
-                int till = 12-s-pp;
-                if (s == 6 && till == 6) till--;
-                foreach(ss; 2..min(6, till)+1)
-                {
-                    if (ss == 2 && p2%2 == 0) continue;
-                    if (s > 2 && ss > 2) continue;
-                    int p3 = p2 + ss;
-                    p3 = p3 % 12;
-
-                    ulong form = form1 | (1UL << ( (ss > 2 ? (ss-3)*12 + p2: 48 + p2/2)));
-                    if (form !in unique)
-                    {
-                        forms[iform] = form;
-                        iform++;
-                        unique[form] = true;
-                    }
-                }
-            }
-        }
-    }
-
-    forms[iform] = (1UL << 48);
-    iform++;
-
-    assert(iform == 952);
 }
 
-static this()
+struct Point
 {
-    gen_forms();
+    float x, y;
 }
+
+// @PointsOfHexagon
+Point[61] points;
+int pw = 0;
 
 /*
  * Generates mask of ingoing in areas of hyperpixel
  * of point (x, y) if width of hyperpixel is w
  * and height is h.
- * Generates areas (@Areas) if gen_areas.
  * @HyperPixel @HyperMask
  */
-ulong hypermask(int x, int y, int w, int h, bool gen_areas)
+void hypermask61(bool[] hpdata, int w, int h, ubyte[] form)
 {
-    struct Point
+    struct YInter
     {
-        int x, y;
+        int x1, x2;
+        byte ydir;
+        float xc, yc;
     }
 
-    /*        0
-     *        oo
-     *  11  oooooo 1
-     *    oooooooooo
-     *10oooooooooooooo 2
-     *  oooooooooooooo
-     *9 oooooooooooooo 3
-     *  oooooooooooooo
-     * 8  oooooooooo  4
-     *   7  oooooo  5
-     *        oo
-     *         6
-     */
-
-    // @PointsOfHexagon
-    Point[12] points;
-
-    points[0] = Point(w/2, 0);
-    points[2] = Point(w, cast(int) round(h/4.0));
-    points[4] = Point(w, h - cast(int) round(h/4.0));
-    points[6] = Point(w/2, h);
-    points[8] = Point(0, h - cast(int) round(h/4.0));
-    points[10] = Point(0, cast(int) round(h/4.0));
-
-    foreach(p; 0..6)
+    float area = 0.0f;
+    foreach(i, f1; form)
     {
-        int p0 = p*2;
-        int p1 = ((p+1)*2) % 12;
+        ubyte f2 = form[(i+1)%$];
 
-        int xx = (points[p0].x + points[p1].x)/2;
-        int yy = (points[p0].y + points[p1].y)/2;
+        Point p1 = points[f1];
+        Point p2 = points[f2];
 
-        points[1+p*2] = Point(xx, yy);
+        area += p1.x*p2.y - p2.x*p1.y;
     }
 
-    // @DividesOfHexagon
-    ulong ret;
-    foreach(s; 3..7)
+    if (area == 0) return;
+
+    int debugy = -1;
+
+    if (debugy >= 0)
     {
-        foreach(p; 0..12)
+        foreach(f; form)
         {
-            int p1 = p + s;
-            double p05 = (p + p1)/2.0;
-            if (p05 >= 12) p05 -= 12;
-            p1 = p1 % 12;
+            writefln("%s", points[f]);
+        }
+    }
 
-            bool bit;
-            if (p05 == 0)
-            {
-                bit = (y < points[p].y);
-            }
-            else if (p05 == 3)
-            {
-                bit = (x >= points[p].x);
-            }
-            else if (p05 == 6)
-            {
-                bit = (y >= points[p].y);
-            }
-            else if (p05 == 9)
-            {
-                bit = (x < points[p].x);
-            }
-            else
-            {
-                int dx = points[p1].x - points[p].x;
-                int dy = points[p1].y - points[p].y;
-                
-                double k = 1.0*dy/dx;
+    foreach(y; 0..h)
+    {
+        float fy = y + 0.5f;
+        YInter[] yinters;
 
-                int dx1 = x - points[p].x;
-                int dy1 = y - points[p].y;
-                if (sgn(dx1) != sgn(dx))
+        int continued;
+        foreach(i, f1; form)
+        {
+            ubyte f2 = form[(i+1)%$];
+
+            Point p1 = points[f1];
+            Point p2 = points[f2];
+
+            if (fy >= p1.y && fy <= p2.y || fy >= p2.y && fy <= p1.y)
+            {
+                if (f1 < 24 && f2 < 24)
                 {
-                    bit = (k > 0 ? dy1 == 0 && dx1 == 0 : sgn(dy1) == sgn(dy));
+                    ubyte f41 = cast(ubyte) (f1 - f1%4);
+                    ubyte f42 = cast(ubyte) (f2 - f2%4);
+
+                    if (f41 == f42 || (f41+4)%24 == f42 || (f42+4)%24 == f41 )
+                    {
+                        continued++;
+                        continue;
+                    }
+                }
+
+                int x1, x2;
+
+                if (p1.x < p2.x)
+                {
+                    x1 = cast(int) round(p1.x);
+                    x2 = cast(int) round(p2.x);
                 }
                 else
                 {
-                    double k1 = 1.0*dy1/dx1;
-                    bit = k1 <= k;
+                    x1 = cast(int) round(p2.x);
+                    x2 = cast(int) round(p1.x);
                 }
+                
+                if (x1 >= w) x1 = w-1;
+                if (x2 >= w) x2 = w-1;
+
+                float xc = p1.x;
+                float yc = (p1.y + p2.y)/2.0f;
+
+                if (abs(p1.y - p2.y) > 0.01)
+                {
+                    float ux1 = p1.x;
+                    float uy1 = p1.y;
+                    float ux2 = p2.x;
+                    float uy2 = p2.y;
+
+                    float dx = ux2 - ux1;
+                    float dy = uy2 - uy1;
+
+                    float yy0 = y + 0.0f;
+                    float yy1 = y + 1.0f;
+
+                    float xx0 = (yy0 - uy1)*dx/dy + ux1;
+                    xc = (fy - uy1)*dx/dy + ux1;
+                    float xx1 = (yy1 - uy1)*dx/dy + ux1;
+
+                    if (y == debugy)
+                    {
+                        writefln("xx0 = %s, xx1 = %s, p1.y = %s, p2.y = %s", xx0, xx1, p1.y, p2.y);
+                    }
+
+                    float minx, maxx;
+                    if (xx0 < xx1)
+                    {
+                        minx = xx0;
+                        maxx = xx1;
+                    }
+                    else
+                    {
+                        minx = xx1;
+                        maxx = xx0;
+                    }
+
+                    int cx0 = cast(int) floor(minx);
+                    int cx1 = cast(int) ceil(maxx);
+                    int ix0, ix1;
+
+                    if (cx0 < 0) cx0 = 0;
+                    if (cx1 > w) cx1 = w;
+
+                    if (y == debugy)
+                    {
+                        writefln("cx0 = %s, cx1 = %s", cx0, cx1);
+                    }
+
+                    if (p2.y < p1.y)
+                    {
+                        ix0 = cx0-1;
+                        ix1 = cx0-1;
+
+                        foreach (x; cx0..cx1)
+                        {
+                            float fx0 = x + 0.0f;
+                            float fx1 = x + 1.0f;
+
+                            float fy0 = (fx0 - xx0)/(xx1-xx0) + yy0;
+                            float fy1 = (fx1 - xx0)/(xx1-xx0) + yy0;
+
+                            if (y == debugy)
+                            {
+                                writefln(">> x = %s, fy0 = %s, fy1 = %s (<0.5 %s != %s)", x, fy0, fy1, (fy0+fy1)/2.0f < (yy0+yy1)/2.0f, p2.x > p1.x);
+                            }
+
+                            if (ix0 < cx0 && (((fy0+fy1)/2.0f < (yy0+yy1)/2.0f) != (p2.x > p1.x)))
+                                ix0 = x;
+
+                            if (((fy0+fy1)/2.0f < (yy0+yy1)/2.0f) != (p2.x > p1.x))
+                                ix1 = x;
+                        }
+
+                        if (ix0 < cx0) ix0 = cx0;
+                        if (ix1 < cx0) ix1 = cx1;
+
+                        if (y == debugy)
+                        {
+                            writefln(">> x = %s-%s, ix = %s-%s", x1, x2, ix0, ix1);
+                        }
+                    }
+                    else
+                    {
+                        ix0 = cx1;
+                        ix1 = cx1;
+
+                        foreach (x; cx0..cx1)
+                        {
+                            float fx0 = x + 0.0f;
+                            float fx1 = x + 1.0f;
+
+                            float fy0 = (fx0 - xx0)/(xx1-xx0) + yy0;
+                            float fy1 = (fx1 - xx0)/(xx1-xx0) + yy0;
+
+                            if (y == debugy)
+                            {
+                                writefln("<< x = %s, fy0 = %s, fy1 = %s (<0.5 %s != %s)", x, fy0, fy1, (fy0+fy1)/2.0f < (yy0+yy1)/2.0f, p2.x > p1.x);
+                            }
+
+                            if (ix0 >= cx1 && (((fy0+fy1)/2.0f < (yy0+yy1)/2.0f) != (p2.x > p1.x)))
+                                ix0 = x;
+
+                            if (((fy0+fy1)/2.0f < (yy0+yy1)/2.0f) != (p2.x > p1.x))
+                                ix1 = x;
+                        }
+
+                        if (ix0 >= cx1) ix0 = cx0;
+                        if (ix1 >= cx1) ix1 = cx1;
+
+                        if (y == debugy)
+                        {
+                            writefln("<< x = %s-%s, ix = %s-%s", x1, x2, ix0, ix1);
+                        }
+                    }
+
+                    if (ix0 > x1)
+                    {
+                        if (ix0 < x2)
+                            x1 = ix0;
+                        else
+                            x1 = x2;
+                    }
+                    if (ix1 < x2)
+                    {
+                        if (ix1 > x1)
+                            x2 = ix1;
+                        else
+                            x2 = x1;
+                    }
+                }
+
+                if (abs(p1.y - fy) <= 0.1)
+                    xc = p2.x;
+                if (abs(p2.y - fy) <= 0.1)
+                    xc = p1.x;
+
+                yinters ~= YInter(x1, x2, cast(byte) (p2.y - p1.y), xc, yc);
+            }
+        }
+
+        alias myComp = (x, y) => (x.xc < y.xc || x.xc == y.xc && x.yc > y.yc);
+
+        yinters = yinters.sort!(myComp).release();
+
+        int xp = 0;
+        byte ydirp;
+        foreach(yinter; yinters)
+        {
+            int sx = (yinter.ydir >= 0) ? yinter.x1 : xp;
+
+            if (y == debugy)
+            {
+                writefln("yinter = %s, sx = %s", yinter, sx);
             }
 
-            if (bit)
-                ret |= (1UL << ((s-3)*12 + p));
+            foreach (x; sx .. yinter.x2+1)
+            {
+                hpdata[y*w + x] = true;
+            }
+
+            xp = yinter.x2+1;
+            ydirp = yinter.ydir;
+        }
+
+        if (y == debugy)
+        {
+            writefln("ydirp = %s, yinters.length = %s, area = %s, continued = %s",
+                    ydirp, yinters, area, continued);
+        }
+
+        if (ydirp > 0 || yinters.length == 0 && ((area > 0) != (continued > 0 && continued%2 == 0)))
+        {
+            foreach (x; xp .. w)
+            {
+                hpdata[y*w + x] = true;
+            }
         }
     }
-
-    foreach(p; 1..12)
-    {
-        if (p%2 == 0) continue;
-        enum s = 2;
-        int p1 = p + s;
-        double p05 = (p + p1)/2.0;
-        if (p05 >= 12) p05 -= 12;
-        p1 = p1 % 12;
-
-        bool bit;
-        if (p05 == 0)
-        {
-            bit = (y < points[p].y);
-        }
-        else if (p05 == 6)
-        {
-            bit = (y >= points[p].y);
-        }
-        else
-        {
-            int dx = points[p1].x - points[p].x;
-            int dy = points[p1].y - points[p].y;
-
-            double k = 1.0*dy/dx;
-
-            int dx1 = x - points[p].x;
-            int dy1 = y - points[p].y;
-            if (sgn(dx1) != sgn(dx))
-            {
-                bit = (k > 0 ? dy1 == 0 && dx1 == 0 : sgn(dy1) == sgn(dy));
-            }
-            else
-            {
-                double k1 = 1.0*dy1/dx1;
-                bit = k1 <= k;
-            }
-        }
-
-        if (bit)
-            ret |= (1UL << (48 + p/2));
-    }
-
-    /* incircle */
-    double cx = w/2;
-    double cy = h/2;
-    double r2 = cx*cx;
-    cx -= .5;
-    cy -= .5;
-
-    bool incircle = ( (x-cx)*(x-cx) + (y-cy)*(y-cy) >= r2 );
-
-    if (incircle)
-        ret |= (1UL << (AREAS-2));
-
-    ret |= (1UL << (AREAS-1));
-
-    // @Areas
-    if (gen_areas)
-    {
-        int pw = w/3;
-        int vo = (h-w)/2;
-
-        int px = x/pw;
-        int py = (y-vo)/pw;
-
-        int pn1 = 1 + py*3 + px;
-        if (y < vo) pn1 = 0;
-        else if (py >= 3) pn1 = 10;
-        else if (px < 0 || px >= 3 || py < 0 || py >= 3) pn1 = -1;
-
-        int ho = w/2 - pw*2;
-        vo = h/2 - pw*2;
-
-        px = (x-ho)/pw;
-        py = (y-vo)/pw;
-
-        int pn2 = py*4 + px;
-        if (px < 0 || px >= 4 || py < 0 || py >= 4) pn2 = -1;
-
-        pw = w/4;
-        vo = (h-w)/2;
-
-        px = x/pw;
-        py = (pw+y-vo)/pw;
-
-        int pn3 = py*4 + px;
-        if (px < 0 || px >= 4 || py < -1 || py > 5) pn3 = -1;
-
-        vo = (h - pw*3)/2;
-        py = (pw+y-vo)/pw;
-        //if (w == 24 && x == 12)
-        //    writefln("w=%s, pw=%s, y=%s, vo=%s, py=%s", w, pw, y, vo, py);
-
-        int pn4 = py*4 + px;
-        if (px < 0 || px >= 4 || py < -1 || py > 4) pn4 = -1;
-
-        foreach (i; 0..AREAS-1)
-        {
-            bool r = (ret & (1UL << i)) != 0;
-            if (r)
-            {
-                areas[i]++;
-
-                if (pn1 >= 0)
-                {
-                    pixareas1[i][pn1]++;
-                }
-                if (pn2 >= 0)
-                {
-                    pixareas2[i][pn2]++;
-                }
-                if (pn3 >= 0)
-                {
-                    pixareas3[i][pn3]++;
-                }
-                if (pn4 >= 0)
-                {
-                    pixareas4[i][pn4]++;
-                }
-            }
-        }
-
-        if (ret)
-        {
-            areas[$-1]++;
-
-            if (pn1 >= 0)
-            {
-                pixareas1[$-1][pn1]++;
-            }
-            if (pn2 >= 0)
-            {
-                pixareas2[$-1][pn2]++;
-            }
-            if (pn3 >= 0)
-            {
-                pixareas3[$-1][pn3]++;
-            }
-            if (pn4 >= 0)
-            {
-                pixareas4[$-1][pn4]++;
-            }
-        }
-    }
-
-    return ret;
 }
 
 /*
@@ -556,18 +324,138 @@ ulong hypermask(int x, int y, int w, int h, bool gen_areas)
  * Returns false if wasn't generated.
  * @HyperPixel
  */
-bool hyperpixel(int w, bool gen_areas)
+BitArray *hyperpixel(int w, ubyte[12] form12, ubyte rotate, bool _debug = false)
 {
-    bool genPixelAreas = (w%3 == 0);
-    bool genPixelAreas2 = (w%4 == 0);
+    ubyte[] form;
+    foreach (f; form12)
+    {
+        if (f == 0) break;
+        f--;
+
+        if (rotate > 0)
+        {
+            if (f < 24)
+            {
+                f = (f + 4*rotate)%24;
+            }
+            else if (f < 42)
+            {
+                f = 24 + (f-24 + 3*rotate)%18;
+            }
+            else if (f < 54)
+            {
+                f = 42 + (f-42 + 2*rotate)%12;
+            }
+            else if (f < 60)
+            {
+                f = 54 + (f-54 + rotate)%6;
+            }
+        }
+
+        form ~= f;
+    }
+
+    if (form.length > 1 && form[0] < 24 && form[$-1] < 24)
+    {
+        ubyte f = form[$-1];
+        ubyte f4 = f%4;
+        f -= f4;
+
+        ubyte fe = form[0];
+        fe -= fe%4;
+
+        if (f != fe || form[$-1] < form[0])
+        {
+            if (f4 > 0)
+            {
+                form ~= f;
+            }
+
+            do
+            {
+                f = (f+20)%24;
+                if (f == form[0]) break;
+                form ~= f;
+            }
+            while (f != fe);
+        }
+    }
+
+    if (form.length > 1 && form[0] == form[$-1])
+        form = form[0..$-1];
+
+    //writefln("form=%s", form);
 
     int h = cast(int) round(w * 2.0 / sqrt(3.0));
-    int hh = cast(int) round(h/4.0);
+    int hh = cast(int) ceil(h/4.0);
     int w5 = cast(int) round(0.5*w);
+
+    /*        0
+     *    23  oo 1
+     *  22  oooooo 2
+     *21  oooooooooo 3
+     *20oooooooooooooo 4
+     *19oooooooooooooo 5
+     *18oooooooooooooo 6
+     *17oooooooooooooo 7
+     *16  oooooooooo  8
+     *1514  oooooo 10 9
+     *    13  oo 11
+     *        12
+     */
+
+    // @PointsOfHexagon
+    if (pw != w)
+    {
+        pw = w;
+
+        points[0] = Point(w/2.0f, 0);
+        points[4] = Point(w, h/4.0f);
+        points[8] = Point(w, h - h/4.0f);
+        points[12] = Point(w/2.0f, h);
+        points[16] = Point(0, h - h/4.0f);
+        points[20] = Point(0, h/4.0f);
+
+        points[60] = Point(w/2.0f, h/2.0f);
+
+        foreach(p; 0..6)
+        {
+            int p0 = p*4;
+
+            foreach(i; 1..4)
+            {
+                int p1 = (27 - i*3)*i + p*(4-i);
+
+                float xx = (points[p0].x*(4-i) + points[60].x*i)/4.0f;
+                float yy = (points[p0].y*(4-i) + points[60].y*i)/4.0f;
+
+                points[p1] = Point(xx, yy);
+            }
+        }
+        
+        foreach(z; 0..3)
+        {
+            int v = 4 - z;
+            foreach(p; 0..6)
+            {
+                int o = (27 - z*3)*z;
+                int p0 = o + p*v;
+                int p1 = o + ((p+1)*v) % (6*v);
+
+                foreach(i; 1..v)
+                {
+                    float xx = (points[p0].x*(v-i) + points[p1].x*i)/v;
+                    float yy = (points[p0].y*(v-i) + points[p1].y*i)/v;
+
+                    points[p0+i] = Point(xx, yy);
+                }
+            }
+        }
+    }
 
     // @HyperPixelSuccess
     bool success = (w5 == (w-w5));
-    foreach (i; 1..hh+1)
+    foreach (i; 1..hh)
     {
         int ww = cast(int) round(0.5*w*i/hh);
         int ww2 = cast(int) round(0.5*w*(hh-i)/hh);
@@ -577,21 +465,19 @@ bool hyperpixel(int w, bool gen_areas)
 
     if (success)
     {
-        writefln("Generate hyperpixel %sx%s (%s, %s)", w, h, 1.0*w/h, 1.0*(h-hh)/w);
+        //writefln("Generate hyperpixel 24 %sx%s (%s, %s)", w, h, 1.0*w/h, 1.0*(h-hh)/w);
 
         // @HyperMask
-        ulong[] hpdata = new ulong[w*h];
-
-        foreach (i; hh+1..(h-hh+1))
+        bool[] hpdata = new bool[w*h];
+        foreach (i; hh..(h-hh+2))
         {
             foreach(j; 0..w)
             {
-                ulong m = hypermask(j, i-1, w, h, gen_areas);
-                hpdata[(i-1)*w + j] = m;
+                hpdata[(i-1)*w + j] = true;
             }
         }
 
-        foreach (i; 1..hh+1)
+        foreach (i; 1..hh)
         {
             int ww = cast(int) round(0.5*w*i/hh);
 
@@ -599,11 +485,8 @@ bool hyperpixel(int w, bool gen_areas)
             {
                 if (w5-j <= ww)
                 {
-                    ulong m = hypermask(j, i-1, w, h, gen_areas);
-                    hpdata[(i-1)*w + j] = m;
-
-                    m = hypermask(j, h-i, w, h, gen_areas);
-                    hpdata[(h-i)*w + j] = m;
+                    hpdata[(i-1)*w + j] = true;
+                    hpdata[(h-i)*w + j] = true;
                 }
             }
 
@@ -611,125 +494,58 @@ bool hyperpixel(int w, bool gen_areas)
             {
                 if (j+1 <= ww)
                 {
-                    ulong m = hypermask(w5+j, i-1, w, h, gen_areas);
-                    hpdata[(i-1)*w + w5+j] = m;
-
-                    m = hypermask(w5+j, h-i, w, h, gen_areas);
-                    hpdata[(h-i)*w + w5+j] = m;
+                    hpdata[(i-1)*w + w5+j] = true;
+                    hpdata[(h-i)*w + w5+j] = true;
                 }
             }
         }
 
-        static if (false)
-        debug
+        if (form.length > 0)
         {
-            foreach(a; 0..AREAS)
-            {
-                writefln("area %s: %s", a, areas[a]);
-                writeln();
-                writefln("   %2d", pixareas1[a][0]);
-                foreach(j; 0..3)
-                {
-                    foreach(i; 0..3)
-                    {
-                        writef("%2d ", pixareas1[a][1+j*3+i]);
-                    }
-                    writeln();
-                }
-                writefln("   %2d", pixareas1[a][10]);
-                writeln();
-                foreach(j; 0..4)
-                {
-                    foreach(i; 0..4)
-                    {
-                        writef("%2d ", pixareas2[a][j*4+i]);
-                    }
-                    writeln();
-                }
-                writeln();
+            bool[] hpdata2 = new bool[w*h];
+            hypermask61(hpdata2, w, h, form);
 
-                writeln();
-                foreach(j; 0..6)
+            foreach (y; 0..h)
+            {
+                foreach (x; 0..w)
                 {
-                    foreach(i; 0..4)
-                    {
-                        writef("%2d ", pixareas3[a][j*4+i]);
-                    }
-                    writeln();
+                    hpdata[y*w + x] &= hpdata2[y*w + x];
                 }
-                writeln();
-                foreach(j; 0..5)
-                {
-                    foreach(i; 0..4)
-                    {
-                        writef("%2d ", pixareas4[a][j*4+i]);
-                    }
-                    writeln();
-                }
-                writeln();
             }
         }
 
-        string dir = "/tmp/hexpict/";
-        if (!dir.exists) dir.mkdir;
-
-        // @Areas
-        if (gen_areas && genPixelAreas)
+        if (_debug)
         {
-            string filename = "hp"~w.text~"x"~h.text~"-3.areas";
-            
-            ubyte[AREAS*2 + AREAS*11 + AREAS*16] buffer;
-            buffer[0..AREAS*2] = (cast(ubyte*)&areas)[0..AREAS*2];
-            foreach (i, pa; pixareas1)
+            foreach (y; 0..h)
             {
-                buffer[AREAS*2+i*11..AREAS*2+(i+1)*11] = cast(ubyte[]) pa[0..$];
+                writef("%2d ", y);
+                foreach (x; 0..w)
+                {
+                    write(hpdata[y*w + x] ? '+' : '.');
+                }
+                writeln();
             }
-            foreach (i, pa; pixareas2)
-            {
-                buffer[AREAS*2+AREAS*11+i*16..AREAS*2+AREAS*11+(i+1)*16] = cast(ubyte[]) pa[0..$];
-            }
-
-            std.file.write(dir ~ filename, buffer);
         }
 
-        // @Areas
-        if (gen_areas && genPixelAreas2)
-        {
-            string filename = "hp"~w.text~"x"~h.text~"-4.areas";
-            
-            ubyte[AREAS*2 + AREAS*24 + AREAS*20] buffer;
-            buffer[0..AREAS*2] = (cast(ubyte*)&areas)[0..AREAS*2];
-            foreach (i, pa; pixareas3)
-            {
-                buffer[AREAS*2+i*24..AREAS*2+(i+1)*24] = cast(ubyte[]) pa[0..$];
-            }
-            foreach (i, pa; pixareas4)
-            {
-                buffer[AREAS*2+AREAS*24+i*20..AREAS*2+AREAS*24+(i+1)*20] = cast(ubyte[]) pa[0..$];
-            }
-
-            std.file.write(dir ~ filename, buffer);
-        }
-
-        std.file.write(dir ~ "hp"~w.text~"x"~h.text~".areas", hpdata);
+        return new BitArray(hpdata);
     }
 
-    return success;
+    return null;
 }
 
 void scalelist()
 {
     // @HyperPixel @HyperPixelSuccess
     writefln("Available hyperpixel sizes:");
-    write("3, 4");
+    write("4");
     foreach (w; 5..100)
     {
         int h = cast(int) round(w * 2.0 / sqrt(3.0));
-        int hh = cast(int) round(h/4.0);
+        int hh = cast(int) ceil(h/4.0);
         int w5 = cast(int) round(0.5*w);
 
         bool success = (w5 == (w-w5));
-        foreach (i; 1..hh+1)
+        foreach (i; 1..hh)
         {
             int ww = cast(int) round(0.5*w*i/hh);
             int ww2 = cast(int) round(0.5*w*(hh-i)/hh);
@@ -745,3 +561,68 @@ void scalelist()
     
     writeln();
 }
+
+/+
+// @PointsOfHexagon
+private FPoint[25] points;
+
+private
+{
+    immutable float fw = 1.0f;
+    immutable float fh = fw * 2.0f / sqrt(3.0f);
+    immutable float fvh = fh/4.0f;
+}
+
+static this()
+{
+    /*        0
+     *    23  oo 1
+     *  22  oooooo 2
+     *21  oooooooooo 3
+     *20oooooooooooooo 4
+     *19oooooooooooooo 5
+     *18oooooooooooooo 6
+     *17oooooooooooooo 7
+     *16  oooooooooo  8
+     *1514  oooooo 10 9
+     *    13  oo 11
+     *        12
+     */
+
+    points[0] = FPoint(fw/2, 0);
+    points[4] = FPoint(fw, fh/4);
+    points[8] = FPoint(fw, fh - fh/4);
+    points[12] = FPoint(fw/2, fh);
+    points[16] = FPoint(0, fh - fh/4);
+    points[20] = FPoint(0, fh/4);
+
+    foreach(p; 0..6)
+    {
+        int p0 = p*4;
+        int p1 = ((p+1)*4) % 24;
+
+        foreach(i; 1..4)
+        {
+            float xx = (points[p0].x*(4-i) + points[p1].x*i)/4.0f;
+            float yy = (points[p0].y*(4-i) + points[p1].y*i)/4.0f;
+
+            points[i+p*4] = FPoint(xx, yy);
+        }
+    }
+    
+    points[24] = FPoint(fw/2, fh/2);
+}
+
+struct Vertex
+{
+    uint x, y;
+    byte p;
+}
+
+void to_float_coords(Vertex v, out float fx, out float fy)
+{
+    fx = (v.x + (v.y%2 == 1 ? 0.5f : 0.0f))*fw + points[v.p].x;
+    fy = v.y*(fh-fvh) + points[v.p].y;
+}
++/
+

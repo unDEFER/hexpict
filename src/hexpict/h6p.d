@@ -13,206 +13,476 @@
 
 module hexpict.h6p;
 
-import imaged;
 import hexpict.color;
+import hexpict.colors;
+import hexpict.hyperpixel;
 
 import std.bitmanip;
 import std.math;
 import std.file;
 import std.stdio;
+import std.algorithm.mutation;
+import std.zlib;
 
-private
+struct SubForm
 {
-    uint[Pixel] color_map;
-    Pixel[] color_pal;
+    ushort form; // 11 bits
+    ushort extra_color; // 10 bits
+    ubyte rotation; // 3 bits
 
-    int color_num;
-
-    /*
-     * Generates optimal palette
-     * @OptimalPalette
-     */
-    void generate_palette()
+    ubyte[3] encode()
     {
-        color_pal = new Pixel[2^^18];
+        uint code24;
+        code24 |= (cast(uint) form & 0x7FF) << 21;
+        code24 |= (cast(uint) extra_color & 0x3FF) << 11;
+        code24 |= (cast(uint) rotation & 0x7) << 8;
+        ubyte[4] be32_code = nativeToBigEndian(cast(uint) code24);
+        return be32_code[0..3];
+    }
 
-        int num = 135; // 261838 colors
-        color_num = num;
-
-        writefln("Generate palette");
-        uint colors = 0;
-        uint collisions = 0;
-        color_pal[colors] = Pixel(0,0,0,0); // Transparent
-        colors++;
-        foreach (z; 0..num)
-        {
-            foreach (y; num/4..num-num/4+1)
-            {
-                foreach (x; 0..num)
-                {
-                    ITP I = ITP(x/(num-1.0), -0.5 + y/(num-1.0), -0.5 + z/(num-1.0));
-                    RGB P = ITP2RGB(I);
-
-                    if (P.r < 0.0 || P.r > 255.5 || P.g < 0.0 || P.g > 255.5 || P.b < 0.0 || P.b > 255.5)
-                        continue;
-                    ITP I2 = RGB2ITP(P);
-                    if ( abs(I2.I-I.I) > 0.001 || abs(I2.T-I.T) > 0.001 || abs(I2.P-I.P) > 0.001 )
-                        continue;
-
-                    Pixel p = RGB2rgb(P);
-                    if (p in color_map)
-                    {
-                        collisions++;
-                    }
-                    else
-                    {
-                        color_pal[colors] = p;
-                        color_map[p] = colors;
-                        colors++;
-                    }
-                }
-            }
-        }
-
-        writefln("Size of palette: %s colors", colors);
-        writefln("%s collisions", collisions);
+    void decode(ubyte[] code)
+    {
+        assert(code.length == 3);
+        ubyte[4] be32_code;
+        be32_code[0..3] = code[0..3];
+        uint code24 = bigEndianToNative!uint(be32_code);
+        form = code24 >> 21;
+        extra_color = (code24 >> 11) & 0x3FF;
+        rotation = (code24 >> 8) & 0x7;
     }
 }
 
-/*
- * Converts RGB to color number from palette
- * @OptimalPalette
- */
-uint RGB2color(Pixel p)
+// @H6PPixel
+struct Pixel
 {
-    uint color;
-    if (p.a > 127)
+    ubyte palette; // 3 bits
+    ushort color; // 10 bits
+    SubForm[] forms; // (len) 3 bits
+
+    ubyte[2] encode()
     {
-        ITP I = rgb2ITP(p);
+        assert(forms.length < 8);
 
-        I.I = round(I.I * (color_num-1.0))/(color_num-1.0);
-        I.T = round((I.T+.5) * (color_num-1.0))/(color_num-1.0) - .5;
-        I.P = round((I.P+.5) * (color_num-1.0))/(color_num-1.0) - .5;
-
-        RGB pc = ITP2RGB(I);
-        int dr, dg, db;
-        while (pc.r < 0 || pc.g < 0 || pc.b < 0 ||
-                pc.r > 255 || pc.g > 255 || pc.b > 255)
-        {
-            if (pc.r < 0) dr++;
-            if (pc.g < 0) dg++;
-            if (pc.b < 0) db++;
-
-            if (pc.r > 255) dr--;
-            if (pc.g > 255) dg--;
-            if (pc.b > 255) db--;
-
-            Pixel p1 = Pixel(p.r+dr, p.g+dg, p.b+db);
-            I = rgb2ITP(p1);
-
-            I.I = round(I.I * (color_num-1.0))/(color_num-1.0);
-            I.T = round((I.T+.5) * (color_num-1.0))/(color_num-1.0) - .5;
-            I.P = round((I.P+.5) * (color_num-1.0))/(color_num-1.0) - .5;
-
-            pc = ITP2RGB(I);
-            //writefln("%s", pc);
-        }
-
-        Pixel pc0 = RGB2rgb(pc);
-
-        color = color_map[pc0];
+        ushort code;
+        code |= (cast(ushort) (palette & 0x7)) << 13;
+        code |= (color & 0x3FF) << 3;
+        code |= (cast(ushort) forms.length & 0x7);
+        ubyte[2] be16_code = nativeToBigEndian(cast(ushort) code);
+        return be16_code;
     }
 
-    return color;
+    void decode(ubyte[] be16_code)
+    {
+        assert(be16_code.length == 2);
+        ushort code = bigEndianToNative!ushort(be16_code[0..2]);
+        palette = code >> 13;
+        color = (code >> 3) & 0x3FF;
+        forms.length = code & 0x7;
+    }
+};
+
+struct Form
+{
+    ubyte[12] dots;
+    uint used;
+    BitArray*[6] hp;
+    int last_w;
+
+    BitArray* get_hyperpixel(int w, ubyte rotate)
+    {
+        if (hp[rotate] is null || last_w != w)
+        {
+            hp[rotate] = hyperpixel(w, dots, rotate);
+            last_w = w;
+        }
+
+        return hp[rotate];
+    }
+
+    ubyte[9] encode()
+    {
+        ubyte[9] code;
+
+        for (int i = 0; i < 3; i++)
+        {
+            uint code24;
+            code24 |= (cast(uint) dots[4*i+0] & 0x3F) << 26;
+            code24 |= (cast(uint) dots[4*i+1] & 0x3F) << 20;
+            code24 |= (cast(uint) dots[4*i+2] & 0x3F) << 14;
+            code24 |= (cast(uint) dots[4*i+3] & 0x3F) << 8;
+            ubyte[4] be32_code = nativeToBigEndian(cast(uint) code24);
+            code[3*i .. 3*i+3] = be32_code[0..3];
+        }
+        return code;
+    }
+
+    void decode(ubyte[] code)
+    {
+        assert(code.length == 9);
+        for (int i = 0; i < 3; i++)
+        {
+            ubyte[4] be32_code;
+            be32_code[0..3] = code[3*i .. 3*i+3];
+            uint code24 = bigEndianToNative!uint(be32_code);
+            dots[4*i+0] = code24 >> 26;
+            dots[4*i+1] = (code24 >> 20) & 0x3F;
+            dots[4*i+2] = (code24 >> 14) & 0x3F;
+            dots[4*i+3] = (code24 >> 8) & 0x3F;
+        }
+    }
 }
+
+// @H6PInMemory
+struct H6P
+{
+    ColorSpace *space;
+    uint width;
+    uint height;
+    ubyte[][8] palette;
+    Color[][8] cpalette;
+    Form[] forms;
+    Pixel[] raster;
+
+    ushort[ubyte[12]] formsmap;
+
+    ushort get_form_num(ubyte[12] dots)
+    {
+        if (dots[0] < 4 && dots[1] > 4 && dots[1] < 24 && dots[2] == 0)
+        {
+            return cast(ushort) (1 + dots[0]*19 + (dots[1] - 5));
+        }
+
+        ushort *num = dots in formsmap;
+        if (num !is null) return cast(ushort) (19*4 + *num);
+
+        if (forms.length >= 1972) return 0;
+
+        forms ~= Form(dots);
+        formsmap[dots] = cast(ushort) (forms.length - 1);
+        return cast(ushort) (19*4 + forms.length - 1);
+    }
+
+    Pixel *pixel(uint x, uint y)
+    {
+        assert(x < width);
+        assert(y < height);
+        uint off = y*width + x;
+
+        return &raster[off];
+    }
+};
+
+H6P* h6p_create(ColorSpace *space, uint w, uint h)
+{
+    H6P* h6p = new H6P;
+    assert(h6p !is null);
+
+    h6p.space = space;
+    h6p.width = w;
+    h6p.height = h;
+    h6p.palette[0] = new ubyte[2*4];
+    h6p.cpalette[0] ~= Color([0.0f, 0.0f, 0.0f, 0.0f], false, space);
+    h6p.raster = new Pixel[w*h];
+    assert(h6p.raster !is null);
+
+    return h6p;
+}
+
 /*
  * Writes h6p-file
  * @H6PFormat
  */
-void write_h6p(Image image, Image mask, string h6p_file)
+void h6p_write(H6P *h6p, string h6p_file)
 {
-    if (color_pal.length == 0) generate_palette();
-
-    uint fileversion = 2;
-    uint w = image.width;
-    uint h = image.height;
-
-    ubyte[] content = new ubyte[16 + w*h*4];
-
-    content[0..4] = cast(ubyte[]) "HexP";
-    content[4..8] = nativeToBigEndian(fileversion);
-    content[8..12] = nativeToBigEndian(w);
-    content[12..16] = nativeToBigEndian(h);
-
-    foreach (y; 0..h)
+    string space_name;
+    const RgbBaseColors *basep = &h6p.space.base;
+    switch (h6p.space.type)
     {
-        foreach (x; 0..w)
-        {
-            uint pix;
-            Pixel p = image[x, y];
-            Pixel m = mask[x, y];
-
-            uint color = RGB2color(p);
-
-            pix |= (color & 0x3FFFF) << 14;
-            pix |= (cast(ubyte) m.g & 0x03) << 12;
-            pix |= (cast(ubyte) m.r & 0xFF) << 4;
-            pix |= (cast(ubyte) m.b & 0x0F);
-
-            content[16+(y*w+x)*4..16+(y*w+x+1)*4] = nativeToBigEndian(pix);
-        }
+        case ColorType.RGB:
+            space_name = "RGB";
+            break;
+        case ColorType.RMB:
+            space_name = "RMB";
+            break;
+        case ColorType.LMS:
+            space_name = "LMS";
+            break;
+        case ColorType.ITP:
+            space_name = "ITP";
+            break;
+        default:
+            assert(false, "Unsupported color space");
     }
 
-    std.file.write(h6p_file, content);
+    uint fileversion = 2;
+    uint w = h6p.width;
+    uint h = h6p.height;
+
+    ubyte[60] header;
+
+    header[0..4] = cast(ubyte[]) "HEDU";
+
+    ubyte[4] be32_fileversion = nativeToBigEndian(fileversion);
+    ubyte[4] be32_w = nativeToBigEndian(w);
+    ubyte[4] be32_h = nativeToBigEndian(h);
+
+    header[4..8] = be32_fileversion;
+    header[8..12] = be32_w;
+    header[12..16] = be32_h;
+    header[16..19] = cast(ubyte[]) space_name[0..3];
+
+    RgbBaseColors base;
+    base = *basep;
+
+    float xw, yw;
+    float xr, yr;
+    float xg, yg;
+    float xb, yb;
+    xw = base.w.x; yw = base.w.y;
+    xr = base.r.x; yr = base.r.y;
+    xg = base.g.x; yg = base.g.y;
+    xb = base.b.x; yb = base.b.y;
+
+    float[8] basec = [xw, yw, xr, yr, xg, yg, xb, yb];
+
+    size_t off = 20;
+    for (uint i = 0; i < 8; i++)
+    {
+        float b = basec[i];
+        uint bu32 = cast(uint) (b * pow(2.0, 32.0));
+        ubyte[4] be32_b = nativeToBigEndian(bu32);
+        header[off..off+4] = be32_b;
+        off += 4;
+    }
+
+    // @H6PSections
+    ubyte[] data;
+
+    foreach (i, palette; h6p.palette)
+    {
+        writefln("Palette %s, size %s", i, h6p.cpalette[i].length);
+        ubyte[2] be16_psize = nativeToBigEndian(cast(ushort) h6p.cpalette[i].length);
+        data ~= be16_psize;
+
+        data ~= palette;
+    }
+
+    ubyte[2] be16_fcount = nativeToBigEndian(cast(ushort) h6p.forms.length);
+    data ~= be16_fcount;
+
+    foreach (form; h6p.forms)
+    {
+        data ~= form.encode();
+    }
+
+    uint dbgoff = 60*w + 298;
+    foreach (pixel; h6p.raster)
+    {
+        data ~= pixel.encode();
+    }
+
+    foreach (o, pixel; h6p.raster)
+    {
+        foreach (f, form; pixel.forms)
+        {
+            if (o == dbgoff)
+                writefln("%s. Form %s, rot %s", f, form.form, form.rotation);
+            data ~= form.encode();
+        }
+    }
+    
+    writefln("data len %s", data.length);
+
+    ubyte[] compressed_data;
+
+    compressed_data = compress(data);
+    assert(compressed_data !is null);
+
+    writefln("Compression ratio: %s%%, size %s bytes", compressed_data.length*100/data.length, compressed_data.length);
+    ubyte[8] be64_c = nativeToBigEndian(cast(ulong) compressed_data.length);
+    header[52..52+8] = be64_c;
+
+    auto f = File(h6p_file, "w");
+    f.rawWrite(header);
+
+    f.rawWrite(compressed_data);
 }
 
-/*
- * Reads h6p-file
- * @H6PFormat
- */
-void read_h6p(string h6p_file, ref Image image, ref Image mask)
+void itp_bounds_by_color_space(ColorSpace *space, ref Bounds itp_bounds)
 {
-    if (color_pal.length == 0) generate_palette();
+    switch (space.type)
+    {
+        case ColorType.RGB:
+            get_itp_bounds(space, itp_bounds);
+            break;
 
+        case ColorType.RMB:
+        case ColorType.LMS:
+        case ColorType.ITP:
+            get_itp_bounds(&RMB_SPACE, itp_bounds);
+            break;
+        
+        default:
+            assert(false, "Unreachable statement");
+    }
+}
+
+H6P *h6p_read(string h6p_file)
+{
     ubyte[] content = cast(ubyte[]) read(h6p_file);
-    
-    char[] magic = cast(char[]) content[0..4];
-    assert(magic == "HexP", "Wrong magic number, not `h6p` file");
+
+    char[4] magic = cast(char[]) content[0..4];
+    assert(magic == "HEDU");
 
     uint fileversion = bigEndianToNative!uint(content[4..8]);
-    assert(fileversion == 2, "Wrong file version");
+    assert(fileversion == 2, "Unsupported version");
 
     uint w = bigEndianToNative!uint(content[8..12]);
     uint h = bigEndianToNative!uint(content[12..16]);
+    char[3] space_name = cast(char[]) content[16..19];
 
-    ubyte[] imgdata = new ubyte[w*h*4];
-    ubyte[] maskdata = new ubyte[w*h*4];
-
-    foreach (y; 0..h)
+    float[8] base;
+    uint off = 20;
+    for (uint i = 0; i < 8; i++)
     {
-        foreach (x; 0..w)
+        ubyte[4] be_base = content[off..off+4];
+        base[i] = bigEndianToNative!uint(be_base) / pow(2.0, 32.0);
+        off += 4;
+    }
+
+    XyType wh = XyType(base[0], base[1]);
+    XyType r = XyType(base[2], base[3]);
+    XyType g = XyType(base[4], base[5]);
+    XyType b = XyType(base[6], base[7]);
+
+    RgbBaseColors basecolors = RgbBaseColors(wh, r, g, b);
+    ColorSpace *space = new ColorSpace;
+    assert(space !is null);
+    space.base = basecolors;
+    space.rgb_companding = CompandingType.GAMMA_2_2;
+    space.rgba_companding = CompandingType.NONE;
+    space.bounds = null;
+    space.rgb_matrices = null;
+
+    switch(space_name)
+    {
+        case "RGB":
+            space.type = ColorType.RGB;
+            space.companding = CompandingType.GAMMA_2_2;
+            space.alpha_companding = CompandingType.NONE;
+            break;
+
+        case "RMB":
+            space.type = ColorType.RMB;
+            space.companding = CompandingType.HLG;
+            space.alpha_companding = CompandingType.NONE;
+
+            float rm = 1.0029;
+            space.bounds = new double[][](2, 3);
+            space.bounds[0][0] = 0.0;
+            space.bounds[0][1] = 0.0;
+            space.bounds[0][2] = 0.0;
+            space.bounds[1][0] = rm;
+            space.bounds[1][1] = rm;
+            space.bounds[1][2] = rm;
+            break;
+
+        case "LMS":
+            space.type = ColorType.LMS;
+            space.companding = CompandingType.GAMMA_2_2;
+            space.alpha_companding = CompandingType.NONE;
+            break;
+
+        case "ITP":
+            space.type = ColorType.ITP;
+            space.companding = CompandingType.NONE;
+            space.alpha_companding = CompandingType.NONE;
+
+            space.bounds = new double[][](2, 3);
+            itp_bounds_by_color_space(space, space.bounds);
+            break;
+
+        default:
+            assert(false, "Unsupported color space");
+    }
+
+    calc_rgb_matrices(space);
+
+    ubyte[8] be_size = content[52 .. 52 + 8];
+    ulong compressed_size = bigEndianToNative!ulong(be_size);
+
+    ulong offset = 60;
+
+    ubyte[] data = cast(ubyte[]) uncompress(content[offset..offset + compressed_size]);
+
+    H6P *h6p = new H6P;
+    assert(h6p !is null);
+
+    h6p.space = space;
+    h6p.width = w;
+    h6p.height = h;
+
+    off = 0;
+    foreach (i, ref palette; h6p.palette)
+    {
+        ubyte[2] be16_psize = data[off..off+2];
+        ushort psize = bigEndianToNative!ushort(be16_psize);
+
+        off += 2;
+        palette = data[off..off + psize*4*2];
+
+        Color[] cpalette;
+        foreach(p; 0..psize)
         {
-            uint pix;
-            ubyte[4] bytes;
-            bytes = content[16+(y*w+x)*4..16+(y*w+x+1)*4];
-            pix = bigEndianToNative!uint(bytes);
+            float[4] channels;
+            foreach (j, ref ch; channels)
+            {
 
-            uint color = cast(uint) ((pix >> 14) & 0x3FFFF);
+                ubyte[2] be16_ch = palette[p*8 + j*2 .. p*8 + j*2 + 2];
+                ushort chs = bigEndianToNative!ushort(be16_ch);
+                ch = chs / 65535.0f;
+            }
 
-            Pixel p = color_pal[color];
+            cpalette ~= Color(channels, false, space);
+        }
+        h6p.cpalette[i] = cpalette;
 
-            imgdata[(y*w + x)*4 + 0] = cast(ubyte) p.r;
-            imgdata[(y*w + x)*4 + 1] = cast(ubyte) p.g;
-            imgdata[(y*w + x)*4 + 2] = cast(ubyte) p.b;
-            imgdata[(y*w + x)*4 + 3] = cast(ubyte) p.a;
+        off += psize*4*2;
+    }
 
-            maskdata[(y*w + x)*4 + 1] = (pix >> 12) & 0x03;
-            maskdata[(y*w + x)*4 + 0] = (pix >> 4) & 0xFF;
-            maskdata[(y*w + x)*4 + 2] = pix & 0x0F;
-            maskdata[(y*w + x)*4 + 3] = 0;
+    ubyte[2] be16_fcount = data[off..off+2];
+    ushort fcount = bigEndianToNative!ushort(be16_fcount);
+
+    off += 2;
+    h6p.forms.length = fcount;
+    foreach (f, ref form; h6p.forms)
+    {
+        form.decode(data[off..off+9]);
+        h6p.formsmap[form.dots] = cast(ushort) f;
+        off += 9;
+    }
+
+    h6p.raster.length = w*h;
+    uint dbgoff = 60*w + 298;
+    foreach (ref pixel; h6p.raster)
+    {
+        pixel.decode(data[off..off+2]);
+        off += 2;
+    }
+
+    foreach (o, ref pixel; h6p.raster)
+    {
+        foreach (f, ref form; pixel.forms)
+        {
+            form.decode(data[off..off+3]);
+            if (o == dbgoff)
+                writefln("%s. Form %s, rot %s", f, form.form, form.rotation);
+            if (form.form > 19*4) h6p.forms[form.form - 19*4].used++;
+            off += 3;
         }
     }
 
-    image = new Img!(Px.R8G8B8A8)(w, h, imgdata);
-    mask = new Img!(Px.R8G8B8A8)(w, h, maskdata);
+    return h6p;
 }
+
+

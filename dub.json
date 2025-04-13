@@ -2,12 +2,21 @@
 	"authors": [
 		"unDEFER"
 	],
-	"copyright": "Copyright © 2022, unDEFER",
+	"copyright": "Copyright © 2022-2024, unDEFER",
 	"description": "Tools for converting between PNG and H6P format of hexagonal graphic",
 	"license": "GPL-3",
 	"name": "hexpict",
     "sourcePaths": ["src"],
 	"dependencies": {
-		"imaged": "~>1.0.2"
-	}
+        "bindbc-sdl": "~>1.4.0"
+	},
+    "subConfigurations": {
+        "bindbc-sdl": "static"
+    },
+    "versions": [
+        "SDL_2016", "SDL_Image_200"
+    ],
+    "libs": [
+        "SDL2", "SDL2_image"
+    ]
 }

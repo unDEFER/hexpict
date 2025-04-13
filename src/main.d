@@ -20,6 +20,7 @@ import std.path;
 
 import tools.pixel2hex;
 import tools.hex2pixel;
+import tools.h6pinfo;
 
 /*
  * Prints usage info. We are using it in main() function
@@ -28,7 +29,7 @@ import tools.hex2pixel;
 private void usage()
 {
     writeln("Usage: hexpict <tool> [options]");
-    writeln("   where <tool> is `pixel2hex` or `hex2pixel`");
+    writeln("   where <tool> is `pixel2hex`, `hex2pixel` or `h6pinfo`");
 }
 
 /*
@@ -60,6 +61,9 @@ int main(string[] args)
     
         case "hex2pixel":
             return hex2pixel(args[tool_narg..$]);
+
+        case "h6pinfo":
+            return h6pinfo(args[tool_narg..$]);
     
         default:
             usage();

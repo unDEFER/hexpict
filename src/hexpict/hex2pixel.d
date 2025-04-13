@@ -18,559 +18,143 @@ import std.file;
 import std.math;
 import std.conv;
 import std.algorithm;
+import std.bitmanip;
+import bindbc.sdl;
 
 import hexpict.h6p;
-import hexpict.common;
+import hexpict.color;
 import hexpict.hyperpixel;
-import imaged;
 
-/*
- * Renders `inpict` h6p-file as `outpict` png image
- * with `scale` hyperpixel
- */
-void hex2pixel(string inpict, string outpict, int scale)
-{
-    IMGError err;
-    ulong[] hp;
-    Image image, mask;
-    read_h6p(inpict, image, mask);
+enum DBGX = 298;
+enum DBGY = 60;
 
-    ubyte[] buffer;
+SDL_Surface *h6p_render(H6P *image, uint scale)
+{   
+    // @Hex2PixelScaleDown
+    uint scaledown = 1;
 
-    string dir = "/tmp/hexpict/";
-
-    // @Areas
-    if (scale == 3)
+    if (scale == 4 || scale == 2 || scale == 1)
     {
-        string areas_file = dir~"hp24x28-3.areas";
-        if (areas_file.exists)
-        {
-            buffer = cast(ubyte[]) read(areas_file);
-
-            areas[0..$] = (cast(short[]) buffer[0..AREAS*2])[0..AREAS];
-            foreach (i, ref pa; pixareas1)
-            {
-                pa[0..$] = cast(byte[]) buffer[AREAS*2+i*11..AREAS*2+(i+1)*11];
-            }
-            foreach (i, ref pa; pixareas2)
-            {
-                pa[0..$] = cast(byte[]) buffer[AREAS*2+AREAS*11+i*16..AREAS*2+AREAS*11+(i+1)*16];
-            }
-        }
-        else
-        {
-            hyperpixel(24, true);
-        }
-    }
-    else if (scale == 4)
-    {
-        string areas_file = dir~"hp24x28-4.areas";
-        if (areas_file.exists)
-        {
-            buffer = cast(ubyte[]) read(areas_file);
-
-            areas[0..$] = (cast(short[]) buffer[0..AREAS*2])[0..AREAS];
-            foreach (i, ref pa; pixareas3)
-            {
-                pa[0..$] = cast(byte[]) buffer[AREAS*2+i*24..AREAS*2+(i+1)*24];
-            }
-            foreach (i, ref pa; pixareas4)
-            {
-                pa[0..$] = cast(byte[]) buffer[AREAS*2+AREAS*24+i*20..AREAS*2+AREAS*24+(i+1)*20];
-            }
-        }
-        else
-        {
-            hyperpixel(24, true);
-        }
+        scaledown = 8/scale;
+        scale = 8;
     }
     else
     {
-        // @HyperMask
-        int w = scale;
-        int h = cast(int) round(w * 2.0 / sqrt(3.0));
-
-        string hpfile = dir ~ "hp"~w.text~"x"~h.text~".areas";
-        if (!hpfile.exists)
-        {
-            if ( !hyperpixel(w, false) )
-            {
-                assert(false, "Invalid scale " ~ scale.text);
-            }
-        }
-
-        buffer = cast(ubyte[]) read(hpfile);
-        hp = cast(ulong[]) buffer;
+        scaledown = 2;
+        scale *= 2;
     }
 
-    int iw = image.width;
-    int ih = image.height;
+    // @HyperMask
+    uint w = scale;
+    float wf = w;
+    float hf = round(wf * 2.0 / sqrt(3.0));
+    uint h = cast(uint) hf;
 
-    int nw, nh;
-    int hpw, hph, hh;
+    uint iw = image.width;
+    uint ih = image.height;
 
-    if (scale == 3)
+    uint hpw = scale;
+    float hpwf = hpw;
+    float hphf = round(hpwf * 2.0 / sqrt(3.0));
+    uint hph = cast(uint) hphf;
+
+    float hhf = floor(hphf/4.0);
+    uint hh = cast(uint) hhf;
+
+    uint nw = hpw*iw;
+    uint nh = ih*(hph-hh)+hh;
+
+    ubyte[12] form12;
+    BitArray *hp = hyperpixel(hpw, form12, 0);
+
+    ubyte[] imgbuf;
+
+    imgbuf = new ubyte[nw*nh * 4];
+    assert(imgbuf !is null);
+
+    ColorSpace *rgbspace = get_rgbspace(image.space);
+
+    for (uint y = 0; y < ih; y++)
     {
-        nw = cast(int) (3*iw);
-        nh = cast(int) (2.5*ih+1);
-    }
-    else if (scale == 4)
-    {
-        nw = cast(int) (4*iw);
-        nh = cast(int) (3.5*ih+1);
-    }
-    else
-    {
-        hpw = scale;
-        hph = cast(int) round(hpw * 2.0 / sqrt(3.0));
+        uint iy = y*(hph-hh);
 
-        hh = cast(int) round(hph/4.0);
-
-        nw = cast(int) (hpw*iw);
-        nh = cast(int) ((hph-hh)*ih+hh+1);
-    }
-
-    ubyte[] imgdata = new ubyte[nw*nh*4];
-    ushort[] imgdata16;
-    if (scale == 3 || scale == 4)
-    {
-        imgdata16 = new ushort[nw*nh*5];
-    }
-
-    foreach (y; 0..ih)
-    {
-        writef("\r(hex2pixel) %s / %s", y, ih);
-        stdout.flush();
-        int iy;
-        if (scale == 3)
+        for (uint x = 0; x < iw; x++)
         {
-            iy = cast(int) (2.5*y);
-        }
-        else if (scale == 4)
-        {
-            iy = cast(int) (3.5*y);
-        }
-        else
-        {
-            iy = (hph-hh)*y;
-        }
+            Pixel *h6p = image.pixel(x, y);
+            bool err;
+            ubyte[4] p;
+            Color color = image.cpalette[0][h6p.color];
+            color_to_u8(&color, rgbspace, p, &err, ErrCorrection.ORDINARY);
 
-        foreach (x; 0..iw)
-        {
-            Pixel p = image[x, y];
-            Pixel m = mask[x, y];
-
-            // @Neighbours
-            Point[6] neigh = neighbours(x, y);
-
-            int ix;
+            // @H6PCoordinates
+            uint ix;
             if (y%2 == 0)
             {
-                if (scale == 3)
-                {
-                    ix = cast(int) (3.0*x);
-                }
-                else if (scale == 4)
-                {
-                    ix = cast(int) (4.0*x);
-                }
-                else
-                {
-                    ix = hpw*x;
-                }
+                ix = hpw*x;
             }
             else
             {
-                if (scale == 3)
-                {
-                    ix = cast(int) (3.0*x);
-                }
-                else if (scale == 4)
-                {
-                    ix = cast(int) (2.0+4.0*x);
-                }
-                else
-                {
-                    ix = hpw/2+hpw*x;
-                }
+                ix = hpw/2+hpw*x;
             }
 
-            // @MixNeighbours
-            Pixel[6] np;
-
-            foreach(i, ref n; np)
+            if (cast(int) x == DBGX && cast(int) y == DBGY)
             {
-                if (neigh[i].x >= 0 && neigh[i].x < iw &&
-                        neigh[i].y >= 0 && neigh[i].y < ih)
-                    n = image[neigh[i].x, neigh[i].y];
-                else
-                    n = p;
+                writefln("%sx%s p=%s color=%s", x, y, p, h6p.color);
             }
 
-            /*if (x == 4 && y == 6)
+            for (uint dy = 0; dy < hph; dy++)
             {
-                writefln("x=%s, y=%s, p=%s, np[5]=%s, m=%s", x, y, p, np[5], m.r);
-            }*/
+                if (iy+dy >= nh) { break; }
 
-            // @PixArea
-            byte[24] pixarea;
-            if (scale == 3 || scale == 4)
-            {
-                ushort i = cast(ushort) (m.r | (m.g << 8));
-                ulong f = forms[i];
-
-                ubyte[4] nareas;
-                int na = 0;
-
-                // @H6PMask
-                foreach(ubyte a; 0..AREAS)
+                for (uint dx = 0; dx < hpw; dx++)
                 {
-                    if (f & (1UL << a))
-                    {
-                        nareas[na] = a;
-                        na++;
-                    }
-                }
+                    if (ix+dx >= nw) { break; }
 
-                if (na == 2 && nareas[1] >= 48 && nareas[1] < 54)
-                   swap(nareas[0], nareas[1]);
+                    size_t hpos = dx + dy*hpw;
 
-                foreach (j, d; nareas[0..na])
-                {
-                    if (scale == 3)
+                    if ((*hp)[hpos])
                     {
-                        if (y%2 == 0)
+                        if (cast(int) ix+dx == 1193*2 && cast(int) iy+dy == 211*2)
                         {
-                            foreach (dn; 0..11)
-                            {
-                                if (i >= 654 && i < 774 && j == 1)
-                                {
-                                    pixarea[dn] += pixareas1[AREAS-1][dn] - pixareas1[d][dn];
-                                }
-                                else
-                                {
-                                    pixarea[dn] += pixareas1[d][dn];
-                                }
-                            }
+                            writefln("%sx%s %sx%s %sx%s p %s", x, y, ix, iy, ix+dx, iy+dy, p);
                         }
-                        else
-                        {
-                            foreach (dn; 0..16)
-                            {
-                                if (i >= 654 && i < 774 && j == 1)
-                                {
-                                    pixarea[dn] += pixareas2[AREAS-1][dn] - pixareas2[d][dn];
-                                }
-                                else
-                                {
-                                    pixarea[dn] += pixareas2[d][dn];
-                                }
-                            }
-                        }
-                    }
-                    else if (scale == 4)
-                    {
-                        if (y%2 == 0)
-                        {
-                            foreach (dn; 0..24)
-                            {
-                                if (i >= 654 && i < 774 && j == 1)
-                                {
-                                    pixarea[dn] += pixareas3[AREAS-1][dn] - pixareas3[d][dn];
-                                }
-                                else
-                                {
-                                    pixarea[dn] += pixareas3[d][dn];
-                                }
-                            }
-                        }
-                        else
-                        {
-                            foreach (dn; 0..20)
-                            {
-                                if (i >= 654 && i < 774 && j == 1)
-                                {
-                                    pixarea[dn] += pixareas4[AREAS-1][dn] - pixareas4[d][dn];
-                                }
-                                else
-                                {
-                                    pixarea[dn] += pixareas4[d][dn];
-                                }
-                            }
-                        }
+                        size_t off = ((iy+dy)*nw + (ix+dx))*4;
+                        imgbuf[off..off+4] = p;
                     }
                 }
             }
 
-            if (scale == 3)
+            //static if (false)
+            foreach (s, subform; h6p.forms)
             {
-                // @SmallScaleNotes
-                if (y%2 == 0)
+                if (cast(int) x == DBGX && cast(int) y == DBGY)
                 {
-                    foreach (dy; 0..3)
-                    {
-                        foreach (dx; 0..3)
-                        {
-                            if (ix+dx >= nw || iy+dy >= nh) continue;
-
-                            int dn = 1 + dy*3 + dx;
-
-                            Pixel ap = p;
-                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.b));
-                            if (m.b & 0x8) swap(ap, mp);
-
-                            byte pa = pixarea[dn];
-                            byte a = cast(byte) (pixareas1[AREAS-1][dn] - pa);
-
-                            int r, g, b, alpha;
-                            r = pa * mp.r;
-                            g = pa * mp.g;
-                            b = pa * mp.b;
-                            alpha = pa * mp.a;
-
-                            r += a * ap.r;
-                            g += a * ap.g;
-                            b += a * ap.b;
-                            alpha += a * ap.a;
-
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 0] += r;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 1] += g;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 2] += b;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 3] += alpha;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 4] += pa+a;
-                        }
-                    }
-
-                    if (ix+1 < nw && iy-1 > 0)
-                    {
-                        int dn = 0;
-
-                        Pixel ap = p;
-                        Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.b));
-                        if (m.b & 0x8) swap(ap, mp);
-
-                        byte pa = pixarea[dn];
-                        byte a = cast(byte) (pixareas1[AREAS-1][dn] - pa);
-
-                        int r, g, b, alpha;
-                        r = pa * mp.r;
-                        g = pa * mp.g;
-                        b = pa * mp.b;
-                        alpha = pa * mp.a;
-
-                        r += a * ap.r;
-                        g += a * ap.g;
-                        b += a * ap.b;
-                        alpha += a * ap.a;
-
-                        imgdata16[((iy-1)*nw + ix+1)*5 + 0] += r;
-                        imgdata16[((iy-1)*nw + ix+1)*5 + 1] += g;
-                        imgdata16[((iy-1)*nw + ix+1)*5 + 2] += b;
-                        imgdata16[((iy-1)*nw + ix+1)*5 + 3] += alpha;
-                        imgdata16[((iy-1)*nw + ix+1)*5 + 4] += pa+a;
-                    }
-
-                    if (ix+1 < nw && iy+3 < nh)
-                    {
-                        int dn = 10;
-
-                        Pixel ap = p;
-                        Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.b));
-                        if (m.b & 0x8) swap(ap, mp);
-
-                        byte pa = pixarea[dn];
-                        byte a = cast(byte) (pixareas1[AREAS-1][dn] - pa);
-
-                        int r, g, b, alpha;
-                        r = pa * mp.r;
-                        g = pa * mp.g;
-                        b = pa * mp.b;
-                        alpha = pa * mp.a;
-
-                        r += a * ap.r;
-                        g += a * ap.g;
-                        b += a * ap.b;
-                        alpha += a * ap.a;
-
-                        imgdata16[((iy+3)*nw + ix+1)*5 + 0] += r;
-                        imgdata16[((iy+3)*nw + ix+1)*5 + 1] += g;
-                        imgdata16[((iy+3)*nw + ix+1)*5 + 2] += b;
-                        imgdata16[((iy+3)*nw + ix+1)*5 + 3] += alpha;
-                        imgdata16[((iy+3)*nw + ix+1)*5 + 4] += pa+a;
-                    }
+                    writefln("%sx%s %s. Form=%s rot=%s", x, y, s, subform.form, subform.rotation);
                 }
-                else
+                ubyte[4] mp;
+                Color mcolor = image.cpalette[0][subform.extra_color];
+                color_to_u8(&mcolor, rgbspace, mp, &err, ErrCorrection.ORDINARY);
+
+                BitArray *mhp = image.forms[subform.form - 19*4].get_hyperpixel(hpw, subform.rotation);
+
+                for (uint dy = 0; dy < hph; dy++)
                 {
-                    foreach (dy; 0..4)
+                    if (iy+dy >= nh) { break; }
+
+                    for (uint dx = 0; dx < hpw; dx++)
                     {
-                        foreach (dx; 0..4)
+                        if (ix+dx >= nw) { break; }
+
+                        size_t hpos = dx + dy*hpw;
+
+                        if ((*mhp)[hpos])
                         {
-                            if (ix+dx >= nw || iy+dy >= nh) continue;
-
-                            int dn = dy*4 + dx;
-
-                            Pixel ap = p;
-                            Pixel mp = (m.r == 0 ? p : mix(np, cast(ubyte) m.b));
-                            if (m.b & 0x8) swap(ap, mp);
-
-                            byte pa = pixarea[dn];
-                            byte a = cast(byte) (pixareas2[AREAS-1][dn] - pa);
-
-                            int r, g, b, alpha;
-                            r = pa * mp.r;
-                            g = pa * mp.g;
-                            b = pa * mp.b;
-                            alpha = pa * mp.a;
-
-                            r += a * ap.r;
-                            g += a * ap.g;
-                            b += a * ap.b;
-                            alpha += a * ap.a;
-
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 0] += r;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 1] += g;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 2] += b;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 3] += alpha;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 4] += pa+a;
-                        }
-                    }
-                }
-            }
-            else if (scale == 4)
-            {
-                // @SmallScaleNotes
-                if (y%2 == 0)
-                {
-                    foreach (dy; 0..6)
-                    {
-                        foreach (dx; 0..4)
-                        {
-                            if (iy+dy < 0 || ix+dx >= nw || iy+dy >= nh) continue;
-
-                            int dn = dy*4 + dx;
-
-                            Pixel ap = p;
-                            Pixel mp = (m.r == 0 && m.g == 0 ? p : mix(np, cast(ubyte) m.b));
-                            if (m.b & 0x8) swap(ap, mp);
-
-                            byte pa = pixarea[dn];
-                            byte a = cast(byte) (pixareas3[AREAS-1][dn] - pa);
-
-                            int r, g, b, alpha;
-                            r = pa * mp.r;
-                            g = pa * mp.g;
-                            b = pa * mp.b;
-                            alpha = pa * mp.a;
-
-                            r += a * ap.r;
-                            g += a * ap.g;
-                            b += a * ap.b;
-                            alpha += a * ap.a;
-
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 0] += r;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 1] += g;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 2] += b;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 3] += alpha;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 4] += pa+a;
-                        }
-                    }
-                }
-                else
-                {
-                    foreach (dy; 0..5)
-                    {
-                        foreach (dx; 0..4)
-                        {
-                            if (iy+dy < 0 || ix+dx >= nw || iy+dy >= nh) continue;
-
-                            int dn = dy*4 + dx;
-
-                            Pixel ap = p;
-                            Pixel mp = (m.r == 0 && m.g == 0 ? p : mix(np, cast(ubyte) m.b));
-                            if (m.b & 0x8) swap(ap, mp);
-
-                            byte pa = pixarea[dn];
-                            byte a = cast(byte) (pixareas4[AREAS-1][dn] - pa);
-
-                            int r, g, b, alpha;
-                            r = pa * mp.r;
-                            g = pa * mp.g;
-                            b = pa * mp.b;
-                            alpha = pa * mp.a;
-
-                            r += a * ap.r;
-                            g += a * ap.g;
-                            b += a * ap.b;
-                            alpha += a * ap.a;
-
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 0] += r;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 1] += g;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 2] += b;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 3] += alpha;
-                            imgdata16[((iy+dy)*nw + ix+dx)*5 + 4] += pa+a;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // @BigScaleNotes
-                ushort i = cast(ushort) (m.r | (m.g << 8));
-                ulong f = forms[i];
-
-                ubyte[4] nareas;
-                int na = 0;
-
-                // @H6PMask
-                foreach(ubyte a; 0..AREAS)
-                {
-                    if (f & (1UL << a))
-                    {
-                        nareas[na] = a;
-                        na++;
-                    }
-                }
-
-                if (na == 2 && nareas[1] >= 48 && nareas[1] < 54)
-                   swap(nareas[0], nareas[1]);
-
-                /*
-                if (x == 239 && y == 125)
-                {
-                    writefln("%sx%s: na=%s, nareas[]=%s", x, y, na, nareas[0..na]);
-                }*/
-
-                foreach (dy; 0..hph)
-                {
-                    foreach (dx; 0..hpw)
-                    {
-                        if (hp[dx + dy*hpw] & (1UL << AREAS-1))
-                        {
-                            Pixel mp = p;
-
-                            bool ec;
-                            //static if (false)
-                            if (i > 0)
+                            if (cast(int) ix+dx == 1193*2 && cast(int) iy+dy == 211*2)
                             {
-                                foreach (j, d; nareas[0..na])
-                                {
-                                    if ( (hp[dx + dy*hpw] & (1UL << d) ? 1 : 0) ^ (i >= 654 && i < 774 && j == 1) )
-                                    {
-                                        ec = true;
-                                        break;
-                                    }
-                                }
+                                writefln("%sx%s %sx%s %sx%s mp %s", x, y, ix, iy, ix+dx, iy+dy, mp);
                             }
-
-                            if (m.b & 0x8 ? !ec : ec)
-                            {
-                                mp = mix(np, cast(ubyte) m.b);
-                            }
-
-                            imgdata[((iy+dy)*nw + ix+dx)*4 + 0] = cast(ubyte) mp.r;
-                            imgdata[((iy+dy)*nw + ix+dx)*4 + 1] = cast(ubyte) mp.g;
-                            imgdata[((iy+dy)*nw + ix+dx)*4 + 2] = cast(ubyte) mp.b;
-                            imgdata[((iy+dy)*nw + ix+dx)*4 + 3] = cast(ubyte) mp.a;
+                            size_t off = ((iy+dy)*nw + (ix+dx))*4;
+                            imgbuf[off..off+4] = mp;
                         }
                     }
                 }
@@ -578,25 +162,55 @@ void hex2pixel(string inpict, string outpict, int scale)
         }
     }
 
-    writeln();
-
-    // @SmallScaleNotes
-    if (scale == 3 || scale == 4)
+    // @Hex2PixelScaleDown
+    if (scaledown > 1)
     {
-        foreach (i; 0 .. imgdata16.length/5)
+        ubyte[] imgbuf2 = new ubyte[(nw/scaledown)*(nh/scaledown) * 4];
+        assert(imgbuf2 !is null);
+
+        for (uint y = 0; y < nh/scaledown; y++)
         {
-            ushort c = imgdata16[i*5+4];
-            if (c > 0)
+            for (uint x = 0; x < nw/scaledown; x++)
             {
-                imgdata[i*4+0] = cast(ubyte) (imgdata16[i*5+0] / c);
-                imgdata[i*4+1] = cast(ubyte) (imgdata16[i*5+1] / c);
-                imgdata[i*4+2] = cast(ubyte) (imgdata16[i*5+2] / c);
-                imgdata[i*4+3] = cast(ubyte) (imgdata16[i*5+3] / c);
+                ushort[4] p = [0, 0, 0, 0];
+
+                for (uint dy = 0; dy < scaledown; dy++)
+                {
+                    for (uint dx = 0; dx < scaledown; dx++)
+                    {
+                        ubyte[4] pp;
+                        uint xx = x*scaledown+dx;
+                        uint yy = y*scaledown+dx;
+                        size_t off = (yy*nw + xx)*4;
+                        pp = imgbuf[off..off+4];
+
+                        p[0] += pp[0];
+                        p[1] += pp[1];
+                        p[2] += pp[2];
+                        p[3] += pp[3];
+                    }
+                }
+
+                ushort ss = cast(ushort) (scaledown*scaledown);
+                p[0] = cast(ushort) ((p[0]+ss/2)/ss);
+                p[1] = cast(ushort) ((p[1]+ss/2)/ss);
+                p[2] = cast(ushort) ((p[2]+ss/2)/ss);
+                p[3] = cast(ushort) ((p[3]+ss/2)/ss);
+
+                ubyte[4] pp = [cast(ubyte) p[0], cast(ubyte) p[1], cast(ubyte) p[2], cast(ubyte) p[3]];
+                uint off = (y*(nw/scaledown) + x)*4;
+                imgbuf2[off..off+4] = pp;
             }
         }
+
+        imgbuf = imgbuf2;
     }
 
-    writefln("Writing image");
-    Image myImg = new Img!(Px.R8G8B8A8)(nw, nh, imgdata);
-    myImg.write(outpict);
+    uint rmask, gmask, bmask, amask;
+    rmask = 0x000000ff;
+    gmask = 0x0000ff00;
+    bmask = 0x00ff0000;
+    amask = 0xff000000;
+    return SDL_CreateRGBSurfaceFrom(imgbuf.ptr, nw/scaledown, nh/scaledown,
+            32, (nw/scaledown) * 4, rmask, gmask, bmask, amask);
 }
