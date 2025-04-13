@@ -14,6 +14,7 @@
 module hexpict.hyperpixel;
 
 import std.algorithm;
+import std.typecons;
 import std.math;
 import std.stdio;
 import std.conv;
@@ -319,9 +320,9 @@ void hypermask61(bool[] hpdata, int w, int h, ubyte[] form)
     }
 }
 
-ubyte[] normalize_form(ubyte[] form)
+Tuple!(ubyte[], "form", ubyte, "rot") normalize_form(ubyte[] form)
 {
-    if (form.length < 2) return form;
+    if (form.length < 2) return tuple!("form", "rot")(form, cast(ubyte) 0);
 
     ubyte[] wr_form;
     foreach (dir; form)
@@ -371,43 +372,83 @@ ubyte[] normalize_form(ubyte[] form)
         }
     }
 
-    if (minds.length == 1) return form;
-
-    ubyte till = cast(ubyte) ((wr_form.length + minds.length-1) / minds.length);
-    writefln("form %s, wr_form %s, minds %s", form, wr_form, minds);
-
-    foreach (off; 1..till)
+    if (minds.length > 1)
     {
-        ubyte[] nexts;
-        foreach (mind; minds)
-        {
-            nexts ~= wr_form[(mind+off)%$];
-        }
+        ubyte till = cast(ubyte) ((wr_form.length + minds.length-1) / minds.length);
+        writefln("form %s, wr_form %s, minds %s", form, wr_form, minds);
 
-        mindf = minIndex(nexts);
-        minv = nexts[mindf];
-        minds2 ~= minds[mindf];
-
-        foreach (i, dir; nexts[mindf+1..$])
+        foreach (off; 1..till)
         {
-            if (dir == minv)
+            ubyte[] nexts;
+            foreach (mind; minds)
             {
-                minds2 ~= minds[mindf+1+i];
+                nexts ~= wr_form[(mind+off)%$];
             }
-        }
 
-        swap(minds, minds2);
-        minds2.length = 0;
+            mindf = minIndex(nexts);
+            minv = nexts[mindf];
+            minds2 ~= minds[mindf];
 
-        writefln("off %s, minds %s", off, minds);
+            foreach (i, dir; nexts[mindf+1..$])
+            {
+                if (dir == minv)
+                {
+                    minds2 ~= minds[mindf+1+i];
+                }
+            }
 
-        if (minds.length == 1)
-        {
-            return form[minds[0]..$] ~ form[0..minds[0]];
+            swap(minds, minds2);
+            minds2.length = 0;
+
+            writefln("off %s, minds %s", off, minds);
+
+            if (minds.length == 1)
+            {
+                break;
+            }
         }
     }
 
-    return form;
+    form = form[minds[0]..$] ~ form[0..minds[0]];
+    ubyte rot = get_rot(form[0]);
+
+    foreach(ref dir; form)
+    {
+        auto o = get_off_r(dir);
+        if (o.r == 0) continue;
+
+        dir = cast(ubyte) (o.off + (dir-o.off + (6-rot)*o.r)%(6*o.r));
+    }
+
+    return tuple!("form", "rot")(form, rot);
+}
+
+Tuple!(ubyte, "off", ubyte, "r") get_off_r(ubyte dir)
+{
+    if (dir < 24)
+    {
+        return tuple!("off", "r")(cast(ubyte) 0, cast(ubyte) 4);
+    }
+    else if (dir < 42)
+    {
+        return tuple!("off", "r")(cast(ubyte) 24, cast(ubyte) 3);
+    }
+    else if (dir < 54)
+    {
+        return tuple!("off", "r")(cast(ubyte) 42, cast(ubyte) 2);
+    }
+    else if (dir < 60)
+    {
+        return tuple!("off", "r")(cast(ubyte) 54, cast(ubyte) 1);
+    }
+    else return tuple!("off", "r")(cast(ubyte) 60, cast(ubyte) 0);
+}
+
+ubyte get_rot(ubyte dir)
+{
+    auto o = get_off_r(dir);
+
+    return cast(ubyte) ((dir-o.off)/o.r);
 }
 
 /*
