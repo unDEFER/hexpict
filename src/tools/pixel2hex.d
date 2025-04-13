@@ -137,14 +137,14 @@ int pixel2hex(string[] args)
     writefln("%s", fromStringz(SDL_GetError()));
     assert(image !is null);
 
-    /*SDL_Surface *im = hexogrid(image, scale, 2.0, 10, 10, 1024, 768, 5, 5);
+    SDL_Surface *im = hexogrid(image, scale, 2.0, 10, 10, 1024, 768, 5, 5);
     SDL_SaveBMP(im, tofile.toStringz());
-    SDL_FreeSurface(im);*/
+    SDL_FreeSurface(im);
 
-    H6P *h6p_image = hexpict.pixel2hex.pixel2hex(image, scale, "ITP");
+    /*H6P *h6p_image = hexpict.pixel2hex.pixel2hex(image, scale, "ITP");
     SDL_FreeSurface(image);
 
-    h6p_write(h6p_image, tofile);
+    h6p_write(h6p_image, tofile);*/
 
     return 0;
 }
