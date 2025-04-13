@@ -957,55 +957,9 @@ iarea:
 
                         if (form.length > 2)
                         {
-                            //normalize_form(form);
-
-                            foreach_reverse (rotate; 0..6)
-                            {
-                                form2.length = 0;
-                                foreach (i, f; form)
-                                {
-                                    if (rotate > 0)
-                                    {
-                                        if (f < 24)
-                                        {
-                                            f = cast(ubyte) ((f + 4*rotate)%24);
-                                        }
-                                        else if (f < 42)
-                                        {
-                                            f = 24 + (f-24 + 3*rotate)%18;
-                                        }
-                                        else if (f < 54)
-                                        {
-                                            f = 42 + (f-42 + 2*rotate)%12;
-                                        }
-                                        else if (f < 60)
-                                        {
-                                            f = 54 + (f-54 + rotate)%6;
-                                        }
-                                    }
-
-                                    form2 ~= f;
-                                }
-
-                                auto min = form2.minIndex();
-                                form2 = form2[min..$] ~ form2[0..min];
-
-                                if (form2[0] != form2[$-1])
-                                    form2 ~= form2[0];
-
-                                ubyte[12] f12;
-                                foreach (i, f; form2)
-                                {
-                                    f12[i] = cast(ubyte) (f+1);
-                                }
-
-                                if (f12 in h6p_image.formsmap || rotate == 0)
-                                {
-                                    swap(form, form2);
-                                    rot = cast(ubyte)((6-rotate)%6);
-                                    break;
-                                }
-                            }
+                            auto nf = normalize_form(form);
+                            form = nf.form;
+                            rot = nf.rot;
                         }
                         else
                         {
