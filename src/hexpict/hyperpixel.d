@@ -64,12 +64,12 @@ int pw = 0;
  * and height is h.
  * @HyperPixel @HyperMask
  */
-void hypermask61(bool[] hpdata, int w, int h, ubyte[] form)
+void hypermask61(bool[] hpdata, int w, int h, ubyte[] form, bool _debug = false)
 {
     struct YInter
     {
         int x1, x2;
-        byte ydir;
+        short ydir;
         float xc, yc;
     }
 
@@ -87,12 +87,13 @@ void hypermask61(bool[] hpdata, int w, int h, ubyte[] form)
     if (area == 0) return;
 
     int debugy = -1;
+    if (_debug) debugy = 18;
 
     if (debugy >= 0)
     {
-        foreach(f; form)
+        foreach(i, f; form)
         {
-            writefln("%s", points[f]);
+            writefln("%s. f %s %s", i, f, points[f]);
         }
     }
 
@@ -109,15 +110,19 @@ void hypermask61(bool[] hpdata, int w, int h, ubyte[] form)
             Point p1 = points[f1];
             Point p2 = points[f2];
 
-            if (fy >= p1.y && fy <= p2.y || fy >= p2.y && fy <= p1.y)
+            if (fy >= p1.y && fy < p2.y || fy >= p2.y && fy < p1.y)
             {
                 if (f1 < 24 && f2 < 24)
                 {
                     ubyte f41 = cast(ubyte) (f1 - f1%4);
                     ubyte f42 = cast(ubyte) (f2 - f2%4);
 
-                    if (f41 == f42 || (f41+4)%24 == f42 || (f42+4)%24 == f41 )
+                    if (f41 == f42 || (f41+4)%24 == f42 && f2%4 == 0 || (f42+4)%24 == f41  && f1%4 == 0)
                     {
+                        if (y == debugy)
+                        {
+                            writefln("continued %s-%s", f1, f2);
+                        }
                         continued++;
                         continue;
                     }
@@ -156,7 +161,25 @@ void hypermask61(bool[] hpdata, int w, int h, ubyte[] form)
                     float yy1 = y + 1.0f;
 
                     float xx0 = (yy0 - uy1)*dx/dy + ux1;
+                    
+                    if (abs(p1.y - fy) <= 0.1)
+                    {
+                        if (p1.y < p2.y)
+                            fy += 0.25;
+                        else
+                            fy -= 0.25;
+                    }
+                    
+                    if (abs(p2.y - fy) <= 0.1)
+                    {
+                        if (p1.y > p2.y)
+                            fy += 0.25;
+                        else
+                            fy -= 0.25;
+                    }
+
                     xc = (fy - uy1)*dx/dy + ux1;
+
                     float xx1 = (yy1 - uy1)*dx/dy + ux1;
 
                     if (y == debugy)
@@ -271,12 +294,7 @@ void hypermask61(bool[] hpdata, int w, int h, ubyte[] form)
                     }
                 }
 
-                if (abs(p1.y - fy) <= 0.1)
-                    xc = p2.x;
-                if (abs(p2.y - fy) <= 0.1)
-                    xc = p1.x;
-
-                yinters ~= YInter(x1, x2, cast(byte) (p2.y - p1.y), xc, yc);
+                yinters ~= YInter(x1, x2, cast(short) (p2.y - p1.y), xc, yc);
             }
         }
 
@@ -285,7 +303,7 @@ void hypermask61(bool[] hpdata, int w, int h, ubyte[] form)
         yinters = yinters.sort!(myComp).release();
 
         int xp = 0;
-        byte ydirp;
+        short ydirp;
         foreach(yinter; yinters)
         {
             int sx = (yinter.ydir >= 0) ? yinter.x1 : xp;
@@ -495,22 +513,23 @@ BitArray *hyperpixel(int w, ubyte[12] form12, ubyte rotate, bool _debug = false)
         f -= f4;
 
         ubyte fe = form[0];
-        fe -= fe%4;
+        fe = cast(ubyte)(fe - fe%4);
+        if (_debug) writefln("form %s, f=%s, fe=%s", form, f, fe);
 
         if (f != fe || form[$-1] < form[0])
         {
+            fe = cast(ubyte)((fe + 4)%24);
             if (f4 > 0)
             {
                 form ~= f;
             }
 
-            do
+            while (f != fe)
             {
                 f = (f+20)%24;
                 if (f == form[0]) break;
                 form ~= f;
             }
-            while (f != fe);
         }
     }
 
