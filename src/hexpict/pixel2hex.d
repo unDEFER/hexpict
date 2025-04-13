@@ -957,6 +957,8 @@ iarea:
 
                         if (form.length > 2)
                         {
+                            normalize_form(form);
+
                             foreach_reverse (rotate; 0..6)
                             {
                                 form2.length = 0;

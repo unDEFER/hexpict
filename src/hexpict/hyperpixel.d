@@ -14,7 +14,6 @@
 module hexpict.hyperpixel;
 
 import std.algorithm;
-import std.range;
 import std.math;
 import std.stdio;
 import std.conv;
@@ -322,7 +321,7 @@ void hypermask61(bool[] hpdata, int w, int h, ubyte[] form)
 
 ubyte[] normalize_form(ubyte[] form)
 {
-    if (form.empty) return form;
+    if (form.length < 2) return form;
 
     ubyte[] wr_form;
     foreach (dir; form)
