@@ -375,7 +375,7 @@ Tuple!(ubyte[], "form", ubyte, "rot") normalize_form(ubyte[] form)
     if (minds.length > 1)
     {
         ubyte till = cast(ubyte) ((wr_form.length + minds.length-1) / minds.length);
-        writefln("form %s, wr_form %s, minds %s", form, wr_form, minds);
+        //writefln("form %s, wr_form %s, minds %s", form, wr_form, minds);
 
         foreach (off; 1..till)
         {
@@ -400,7 +400,7 @@ Tuple!(ubyte[], "form", ubyte, "rot") normalize_form(ubyte[] form)
             swap(minds, minds2);
             minds2.length = 0;
 
-            writefln("off %s, minds %s", off, minds);
+            //writefln("off %s, minds %s", off, minds);
 
             if (minds.length == 1)
             {
@@ -420,7 +420,7 @@ Tuple!(ubyte[], "form", ubyte, "rot") normalize_form(ubyte[] form)
         dir = cast(ubyte) (o.off + (dir-o.off + (6-rot)*o.r)%(6*o.r));
     }
 
-    writefln("return %s", tuple!("form", "rot")(form, rot));
+    //writefln("return %s", tuple!("form", "rot")(form, rot));
     return tuple!("form", "rot")(form, rot);
 }
 
