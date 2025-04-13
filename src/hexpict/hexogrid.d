@@ -85,6 +85,35 @@ SDL_Surface *hexogrid(SDL_Surface *image, uint scale, float scaleup, int offx, i
         {
             int x = offx + (x0 - (y%2 == 1?hpw/2:0))/hpw;
 
+            int hx = (y%2 == 1?hpw/2:0) + (x-offx)*hpw;
+            int hx2 = hx + hpw/2;
+            int hy = (y-offy)*(hph-hh);
+            int hy2 = hy + hh;
+
+            float hw = hpwf;
+
+            int dx = x - hx2;
+            int dy = y - hy;
+
+            if (y < hy2)
+            {
+                hw = 1.0f*dy*hpw/hh;
+
+                if (abs(dx) > hw/2.0f)
+                {
+                    hy -= (hph-hh);
+                    if (dx > 0) hx = hx2;
+                    else hx -= hpw/2;
+
+                    hx2 = hx + hpw/2;
+                    dx = x - hx2;
+                    dy = y - hy;
+                    hw = hpw - hw;
+                }
+            }
+
+            bool bdr = (abs(dx) >= (hw/2.0f - 1.0f));
+
             int sx0 = cast(int) round(x0/scaleup);
             int sy0 = cast(int) round(y0/scaleup);
 
@@ -113,6 +142,21 @@ SDL_Surface *hexogrid(SDL_Surface *image, uint scale, float scaleup, int offx, i
                 SDL_GetRGBA(pixel_value,image.format,&r,&g,&b,&a);
 
                 bool sel = (x == selx && y == sely);
+                if (bdr)
+                {
+                    if (dx < 0)
+                    {
+                        if (!sel) r = cast(ubyte) (r < 205 ? r + 50 : 255);
+                        g = cast(ubyte) (g < 205 ? g + 50 : 255);
+                        if (!sel) b = cast(ubyte) (b < 205 ? b + 50 : 255);
+                    }
+                    else
+                    {
+                        if (!sel) r = cast(ubyte) (r > 50 ? r - 50 : 0);
+                        g = cast(ubyte) (g > 50 ? g - 50 : 0);
+                        if (!sel) b = cast(ubyte) (b > 50 ? b - 50 : 0);
+                    }
+                }
 
                 ubyte[4] p = [r, g, b, a];
 
