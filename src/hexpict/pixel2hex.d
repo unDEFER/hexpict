@@ -985,59 +985,6 @@ iarea:
                                     form2 ~= f;
                                 }
 
-                                /*
-                                foreach (ref f; form2)
-                                {
-                                    ubyte r, o, m;
-                                    if (f < 24)
-                                    {
-                                        r = 4;
-                                        m = cast(ubyte) (f/r);
-                                        o = cast(ubyte) (f%r);
-                                    }
-                                    else if (f < 42)
-                                    {
-                                        r = 3;
-                                        m = cast(ubyte) ((f-24)/r);
-                                        o = cast(ubyte) ((f-24)%r);
-                                    }
-                                    else if (f < 54)
-                                    {
-                                        r = 2;
-                                        m = cast(ubyte) ((f-42)/r);
-                                        o = cast(ubyte) ((f-42)%r);
-                                    }
-                                    else if (f < 60)
-                                    {
-                                        r = 1;
-                                        m = cast(ubyte) (f-54);
-                                    }
-                                    else
-                                    {
-                                        r = 0;
-                                    }
-
-                                    if (r == 4) r = 3;
-                                    if (r == 2) r = 1;
-                                    o = cast(ubyte) (o - o%2);
-                                    if (o >= r) o = cast(ubyte) (r-1);
-
-                                    f = cast(ubyte) ((27 - (4-r)*3)*(4-r) + m*r + o);
-                                }
-
-                                int[] form3;
-
-                                foreach (i, f; form2)
-                                {
-                                    if (f != form2[(i+1)%$])
-                                        form3 ~= f;
-                                }
-
-                                if (form3.length == 0) form3 ~= form2[0];
-
-                                swap(form2, form3);
-                                */
-
                                 auto min = form2.minIndex();
                                 form2 = form2[min..$] ~ form2[0..min];
 
@@ -1057,35 +1004,6 @@ iarea:
                                     break;
                                 }
                             }
-
-                            /*
-                               foreach (i, f; form)
-                               {
-                               if (f >= 24)
-                               {
-                               if (first_c == -1)
-                               first_c = cast(int) i;
-                               last_c = cast(int) i;
-
-                               if (first_b != -1)
-                               bdone = true;
-                               }
-                               else if (!bdone)
-                               {
-                               if (first_b == -1)
-                               first_b = cast(int) i;
-                               nlast_b = cast(int) i;
-                               }
-                               }
-
-                               if (first_c > 0 && last_c < form.length-1)
-                               {
-                               form = form[first_c-1..last_c+1];
-                               }
-                               else if (first_b >= 0 && nlast_b >= 0)
-                               {
-                               form = form[nlast_b..$] ~ form[0..first_b+1];
-                               }*/
                         }
                         else
                         {
