@@ -381,7 +381,7 @@ ubyte[] normalize_form(ubyte[] form)
         ubyte[] nexts;
         foreach (mind; minds)
         {
-            nexts ~= wr_form[mind+off];
+            nexts ~= wr_form[(mind+off)%$];
         }
 
         mindf = minIndex(nexts);
