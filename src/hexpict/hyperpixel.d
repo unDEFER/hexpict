@@ -14,6 +14,7 @@
 module hexpict.hyperpixel;
 
 import std.algorithm;
+import std.range;
 import std.math;
 import std.stdio;
 import std.conv;
@@ -317,6 +318,97 @@ void hypermask61(bool[] hpdata, int w, int h, ubyte[] form)
             }
         }
     }
+}
+
+ubyte[] normalize_form(ubyte[] form)
+{
+    if (form.empty) return form;
+
+    ubyte[] wr_form;
+    foreach (dir; form)
+    {
+        ubyte off, r;
+        if (dir < 24)
+        {
+            off = 0;
+            r = 4;
+        }
+        else if (dir < 42)
+        {
+            off = 24;
+            r = 3;
+        }
+        else if (dir < 54)
+        {
+            off = 42;
+            r = 2;
+        }
+        else if (dir < 60)
+        {
+            off = 54;
+            r = 1;
+        }
+        else
+        {
+            off = 60;
+            r = 0;
+        }
+
+        if (r > 0)
+            dir = cast(ubyte) (off + (dir-off)%r);
+        wr_form ~= dir;
+    }
+
+    ptrdiff_t mindf = minIndex(wr_form);
+    ubyte minv = wr_form[mindf];
+    ubyte[] minds = [cast(ubyte) mindf];
+    ubyte[] minds2;
+
+    foreach (i, dir; wr_form[mindf+1..$])
+    {
+        if (dir == minv)
+        {
+            minds ~= cast(ubyte)(mindf+1+i);
+        }
+    }
+
+    if (minds.length == 1) return form;
+
+    ubyte till = cast(ubyte) ((wr_form.length + minds.length-1) / minds.length);
+    writefln("form %s, wr_form %s, minds %s", form, wr_form, minds);
+
+    foreach (off; 1..till)
+    {
+        ubyte[] nexts;
+        foreach (mind; minds)
+        {
+            nexts ~= wr_form[mind+off];
+        }
+
+        mindf = minIndex(nexts);
+        minv = nexts[mindf];
+        minds2 ~= minds[mindf];
+
+        foreach (i, dir; nexts[mindf+1..$])
+        {
+            if (dir == minv)
+            {
+                minds2 ~= minds[mindf+1+i];
+            }
+        }
+
+        swap(minds, minds2);
+        minds2.length = 0;
+
+        writefln("off %s, minds %s", off, minds);
+
+        if (minds.length == 1)
+        {
+            return form[minds[0]..$] ~ form[0..minds[0]];
+        }
+    }
+
+    return form;
 }
 
 /*
