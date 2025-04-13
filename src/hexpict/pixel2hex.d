@@ -907,7 +907,7 @@ iarea:
                         if (_debug)
                             writefln("points: %s", points);
 
-                        int[] form;
+                        ubyte[] form;
                         {
                             float r = hph/2.0f;
 
@@ -928,7 +928,7 @@ iarea:
                                     angle = (cast(int) round(angle))%6;
                                 }
 
-                                int f = R == 4 ? 60 : (27 - R*3)*R + (cast(int) round(angle*(4-R)))%(6*(4-R));
+                                ubyte f = cast(ubyte) (R == 4 ? 60 : (27 - R*3)*R + (cast(int) round(angle*(4-R)))%(6*(4-R)));
                                 form ~= f;
 
                                 if (_debug)
@@ -943,7 +943,7 @@ iarea:
                         int first_b = -1;
                         int nlast_b = -1;
 
-                        int[] form2;
+                        ubyte[] form2;
 
                         foreach (i, f; form)
                         {
@@ -966,7 +966,7 @@ iarea:
                                     {
                                         if (f < 24)
                                         {
-                                            f = (f + 4*rotate)%24;
+                                            f = cast(ubyte) ((f + 4*rotate)%24);
                                         }
                                         else if (f < 42)
                                         {
